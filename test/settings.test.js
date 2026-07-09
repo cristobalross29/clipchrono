@@ -32,6 +32,8 @@ test('set() clamps maxItems and expireDays', () => {
   assert.strictEqual(s.set({ maxItems: 999999 }).maxItems, 5000);
   assert.strictEqual(s.set({ maxItems: 1 }).maxItems, 50);
   assert.strictEqual(s.set({ expireDays: -5 }).expireDays, 0);
+  assert.strictEqual(s.set({ maxItems: 0 }).maxItems, 50);
+  assert.strictEqual(s.set({ maxItems: 'abc' }).maxItems, 500);
 });
 
 test('defaults match spec', () => {

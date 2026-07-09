@@ -24,8 +24,10 @@ function createSettings(dir) {
 
   function set(patch) {
     cache = { ...cache, ...patch };
-    cache.maxItems = Math.max(50, Math.min(5000, Number(cache.maxItems) || DEFAULTS.maxItems));
-    cache.expireDays = Math.max(0, Number(cache.expireDays) || 0);
+    const max = Number(cache.maxItems);
+    cache.maxItems = Number.isFinite(max) ? Math.max(50, Math.min(5000, max)) : DEFAULTS.maxItems;
+    const days = Number(cache.expireDays);
+    cache.expireDays = Number.isFinite(days) ? Math.max(0, days) : 0;
     fs.mkdirSync(dir, { recursive: true });
     const tmp = file + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(cache, null, 2));
