@@ -1,3 +1,25 @@
 <!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Pastport</title></head>
-<body style="font-family: -apple-system; padding: 20px;">Pastport panel — UI in next task</body></html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Pastport</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="list-view">
+    <header>
+      <input id="search" type="text" placeholder="Search clipboard history…" autofocus>
+    </header>
+    <main id="items"></main>
+    <footer>
+      <button id="clear-all" class="footer-btn" title="Clear history">🗑 Clear</button>
+      <button id="delete-selected" class="footer-btn danger" hidden>Delete (<span id="sel-count"></span>)</button>
+      <span class="spacer"></span>
+      <button id="open-settings" class="footer-btn" title="Settings">⚙︎</button>
+    </footer>
+  </div>
+  <div id="settings-view" hidden></div>
+  <script src="panel.js"></script>
+  <script src="settings.js"></script>
+</body>
+</html>
