@@ -4,7 +4,7 @@ const crypto = require('node:crypto');
 const sha1 = require('./hash');
 
 const normalizeForHash = (text) =>
-  text.normalize('NFC').replace(/[   ]/g, ' ').trim();
+  text.normalize('NFC').replace(/[\u00A0\u202F\u2007]/g, ' ').trim();
 
 function createStore(dir, { getMaxItems = () => 500, now = Date.now } = {}) {
   const file = path.join(dir, 'history.json');
