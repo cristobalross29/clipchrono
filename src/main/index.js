@@ -41,6 +41,7 @@ const toView = (i) => ({
   id: i.id,
   type: i.type,
   pinned: i.pinned,
+  folderId: i.folderId || null,
   copiedAt: i.copiedAt,
   preview: i.type === 'text' ? i.text.slice(0, 300) : null,
   thumbUrl: i.type === 'image' ? pathToFileURL(i.thumbPath).href : null,
@@ -114,7 +115,7 @@ function showWelcome() {
 }
 
 function setupIpc() {
-  ipcMain.handle('history:list', (_e, query) => store.list(query || '').map(toView));
+  ipcMain.handle('history:list', (_e, query, folderId) => store.list(query || '', folderId || null).map(toView));
 
   ipcMain.handle('item:select', (_e, id) => {
     const item = store.get(id);
@@ -131,6 +132,11 @@ function setupIpc() {
 
   ipcMain.handle('item:remove', (_e, ids) => store.remove(ids));
   ipcMain.handle('item:pin', (_e, id, pinned) => store.setPinned(id, pinned));
+  ipcMain.handle('item:setFolder', (_e, itemId, folderId) => store.setItemFolder(itemId, folderId ?? null));
+  ipcMain.handle('folders:list', () => store.listFolders().map((f) => ({ id: f.id, name: f.name })));
+  ipcMain.handle('folders:create', (_e, name) => store.createFolder(String(name ?? '')));
+  ipcMain.handle('folders:rename', (_e, id, name) => store.renameFolder(id, String(name ?? '')));
+  ipcMain.handle('folders:delete', (_e, id) => store.deleteFolder(id));
   ipcMain.handle('history:clear', () => store.clearAll());
 
   ipcMain.handle('settings:get', () => ({
