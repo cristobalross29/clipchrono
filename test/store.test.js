@@ -129,3 +129,20 @@ test('valid-JSON-wrong-shape history.json is quarantined like corrupt JSON', () 
   assert.strictEqual(s.list().length, 0);
   assert.ok(fs.existsSync(path.join(dir, 'history.json.bak')));
 });
+
+test('texts differing only by invisible whitespace dedupe to one entry', () => {
+  const s = createStore(tmp());
+  const original = s.addText('Estoy probando de nueva aplicación.');
+  s.addText(' Estoy probando de nueva aplicación.');
+  s.addText('Estoy probando de nueva aplicación. ');
+  assert.strictEqual(s.list().length, 1);
+  assert.strictEqual(s.list()[0].id, original.id);
+  assert.strictEqual(s.list()[0].text, 'Estoy probando de nueva aplicación.');
+});
+
+test('NFD and NFC forms of the same text dedupe to one entry', () => {
+  const s = createStore(tmp());
+  s.addText('aplicación');
+  s.addText('aplicación');
+  assert.strictEqual(s.list().length, 1);
+});

@@ -3,6 +3,9 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const sha1 = require('./hash');
 
+const normalizeForHash = (text) =>
+  text.normalize('NFC').replace(/[   ]/g, ' ').trim();
+
 function createStore(dir, { getMaxItems = () => 500, now = Date.now } = {}) {
   const file = path.join(dir, 'history.json');
   const imagesDir = path.join(dir, 'images');
@@ -67,7 +70,7 @@ function createStore(dir, { getMaxItems = () => 500, now = Date.now } = {}) {
 
   function addText(text) {
     if (!text || !text.trim()) return null;
-    const hash = sha1('text:' + text);
+    const hash = sha1('text:' + normalizeForHash(text));
     const existing = items.find((i) => i.hash === hash);
     if (existing) return touch(existing.id);
     const t = now();
