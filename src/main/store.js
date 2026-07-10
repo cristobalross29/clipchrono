@@ -199,6 +199,7 @@ function createStore(dir, { getMaxItems = () => 500, now = Date.now } = {}) {
   function setItemFolder(itemId, folderId) {
     const item = get(itemId);
     if (!item) return;
+    if ((item.folderId ?? null) === (folderId ?? null)) return; // no-op move must not reorder or re-cap
     if (folderId != null && !folders.some((f) => f.id === folderId)) return;
     if (folderId == null) {
       delete item.folderId;

@@ -141,3 +141,15 @@ test('corrupt or wrong-shape folders.json is quarantined to .bak', () => {
   s.createFolder('fresh');
   assert.strictEqual(createStore(dir).listFolders().length, 1);
 });
+
+test('setItemFolder is a strict no-op when the item is already in that place', () => {
+  const s = createStore(tmp(), { getMaxItems: () => 2 });
+  s.addText('old');
+  const top = s.addText('top');
+  s.setItemFolder(s.list()[1].id, null);
+  assert.deepStrictEqual(s.list().map((i) => i.text), ['top', 'old']);
+  const f = s.createFolder('f');
+  s.setItemFolder(top.id, f.id);
+  s.setItemFolder(top.id, f.id);
+  assert.strictEqual(s.list('', f.id).length, 1);
+});
