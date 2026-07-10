@@ -24,8 +24,12 @@ function timeAgo(ts) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
+let refreshSeq = 0;
 async function refresh() {
-  items = await pastport.list(searchEl.value);
+  const seq = ++refreshSeq;
+  const result = await pastport.list(searchEl.value);
+  if (seq !== refreshSeq) return; // a newer refresh superseded this one
+  items = result;
   selection = new Set([...selection].filter((id) => items.some((i) => i.id === id)));
   activeIndex = Math.min(activeIndex, Math.max(items.length - 1, 0));
   render();
