@@ -141,7 +141,7 @@ function setupIpc() {
       else launchagent.uninstall({});
     }
     if (after.expireDays !== before.expireDays) store.expire(after.expireDays);
-    return after;
+    return settings.get(); // registerHotkey() may have reverted a failed hotkey; return actual state
   });
 
   ipcMain.handle('panel:hide', () => { panel.hide(); app.hide(); });
@@ -159,7 +159,7 @@ function setupIpc() {
   });
 }
 
-app.on('second-instance', () => showPanel(false));
+app.on('second-instance', () => { if (panel) showPanel(false); });
 app.on('will-quit', () => globalShortcut.unregisterAll());
 app.on('window-all-closed', () => {}); // stay alive in the tray
 
