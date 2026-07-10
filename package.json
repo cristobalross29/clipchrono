@@ -1,19 +1,43 @@
 {
   "name": "pastport",
   "version": "0.1.0",
-  "description": "Your passport to everything you've copied — a macOS menu-bar clipboard with memory.",
+  "description": "Your passport to everything you've copied \u2014 a macOS menu-bar clipboard with memory.",
   "license": "MIT",
-  "os": ["darwin"],
-  "engines": { "node": ">=22.12.0" },
+  "os": [
+    "darwin"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "main": "src/main/index.js",
-  "bin": { "pastport": "bin/pastport.js" },
-  "files": ["bin", "src"],
+  "bin": {
+    "pastport": "bin/pastport.js"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
   "scripts": {
     "start": "electron .",
     "test": "node --test test/*.test.js"
   },
-  "keywords": ["clipboard", "clipboard-manager", "macos", "menubar", "history"],
+  "keywords": [
+    "clipboard",
+    "clipboard-manager",
+    "macos",
+    "menubar",
+    "history"
+  ],
   "dependencies": {
     "electron": "^43.0.0"
+  },
+  "author": "Cristobal Ross",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cristobalross29/pastport.git"
+  },
+  "homepage": "https://github.com/cristobalross29/pastport#readme",
+  "bugs": {
+    "url": "https://github.com/cristobalross29/pastport/issues"
   }
 }
