@@ -68,3 +68,30 @@ test('concealed clipboard (password managers) is never captured', () => {
   w.check();
   assert.deepStrictEqual(texts, ['normal']);
 });
+
+test('start() checks immediately, polls on interval, stop() halts polling', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const { clip, texts, w } = setup();
+  clip.text = 'first';
+  w.start();
+  assert.deepStrictEqual(texts, ['first']);
+  clip.text = 'second';
+  t.mock.timers.tick(500);
+  assert.deepStrictEqual(texts, ['first', 'second']);
+  w.stop();
+  clip.text = 'third';
+  t.mock.timers.tick(5000);
+  assert.deepStrictEqual(texts, ['first', 'second']);
+});
+
+test('start() twice does not double-poll', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const { clip, texts, w } = setup();
+  clip.text = 'one';
+  w.start();
+  w.start();
+  clip.text = 'two';
+  t.mock.timers.tick(500);
+  assert.deepStrictEqual(texts, ['one', 'two']);
+  w.stop();
+});

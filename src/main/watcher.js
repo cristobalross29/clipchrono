@@ -27,6 +27,7 @@ function createWatcher({ clipboard, onText, onImage, intervalMs = 500 }) {
   }
 
   function start() {
+    if (timer) return;
     check();
     timer = setInterval(check, intervalMs);
   }
