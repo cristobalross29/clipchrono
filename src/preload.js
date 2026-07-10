@@ -13,4 +13,5 @@ contextBridge.exposeInMainWorld('pastport', {
   requestAccessibility: () => ipcRenderer.invoke('welcome:accessibility'),
   finishOnboarding: () => ipcRenderer.invoke('welcome:done'),
   onShow: (cb) => ipcRenderer.on('panel:shown', () => cb()),
+  onHistoryChanged: (cb) => ipcRenderer.on('history:changed', () => cb()),
 });

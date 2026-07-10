@@ -121,3 +121,11 @@ test('corrupt history.json is renamed to .bak and store starts empty', () => {
   s.addText('after-corruption');
   assert.deepStrictEqual(s.list().map((i) => i.text), ['after-corruption']);
 });
+
+test('valid-JSON-wrong-shape history.json is quarantined like corrupt JSON', () => {
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, 'history.json'), '{"not":"an array"}');
+  const s = createStore(dir);
+  assert.strictEqual(s.list().length, 0);
+  assert.ok(fs.existsSync(path.join(dir, 'history.json.bak')));
+});

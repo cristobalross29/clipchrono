@@ -170,5 +170,6 @@ pastport.onShow(() => {
   showView('list');
   refresh();
 });
+pastport.onHistoryChanged(() => refresh());
 
 refresh();

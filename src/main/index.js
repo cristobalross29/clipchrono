@@ -17,7 +17,10 @@ const PANEL_W = 360;
 const PANEL_H = 480;
 
 const clipboardAdapter = {
-  readText: () => clipboard.readText(),
+  readText: () => {
+    const t = clipboard.readText();
+    return t.length > 10_000_000 ? '' : t;
+  },
   readImagePng: () => {
     const img = clipboard.readImage();
     if (img.isEmpty()) return null;
@@ -86,11 +89,13 @@ function togglePanel(nearTray) {
 
 function registerHotkey() {
   globalShortcut.unregisterAll();
+  const tryRegister = (accel) => {
+    try { return globalShortcut.register(accel, () => togglePanel(false)); } catch { return false; }
+  };
   const wanted = settings.get().hotkey;
-  const ok = globalShortcut.register(wanted, () => togglePanel(false));
-  if (!ok && wanted !== DEFAULTS.hotkey) {
+  if (!tryRegister(wanted) && wanted !== DEFAULTS.hotkey) {
     settings.set({ hotkey: DEFAULTS.hotkey });
-    globalShortcut.register(DEFAULTS.hotkey, () => togglePanel(false));
+    tryRegister(DEFAULTS.hotkey);
   }
 }
 
@@ -175,8 +180,8 @@ app.whenReady().then(() => {
   }
   watcher = createWatcher({
     clipboard: clipboardAdapter,
-    onText: (t) => { store.addText(t); if (panel && panel.isVisible()) panel.webContents.send('panel:shown'); },
-    onImage: (png) => { store.addImage(png, makeThumb(png)); if (panel && panel.isVisible()) panel.webContents.send('panel:shown'); },
+    onText: (t) => { store.addText(t); if (panel && panel.isVisible()) panel.webContents.send('history:changed'); },
+    onImage: (png) => { store.addImage(png, makeThumb(png)); if (panel && panel.isVisible()) panel.webContents.send('history:changed'); },
   });
 
   tray = new Tray(nativeImage.createEmpty());

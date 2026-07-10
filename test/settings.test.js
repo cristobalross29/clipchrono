@@ -36,6 +36,16 @@ test('set() clamps maxItems and expireDays', () => {
   assert.strictEqual(s.set({ maxItems: 'abc' }).maxItems, 500);
 });
 
+test('invalid disk values are sanitized at load', () => {
+  const dir = tmp();
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ hotkey: 123, maxItems: 999999999, expireDays: 'x' }));
+  const s = createSettings(dir);
+  assert.strictEqual(s.get().hotkey, DEFAULTS.hotkey);
+  assert.strictEqual(s.get().maxItems, 5000);
+  assert.strictEqual(s.get().expireDays, 0);
+});
+
 test('defaults match spec', () => {
   assert.strictEqual(DEFAULTS.hotkey, 'CommandOrControl+Shift+V');
   assert.strictEqual(DEFAULTS.maxItems, 500);

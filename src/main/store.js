@@ -9,6 +9,7 @@ function createStore(dir, { getMaxItems = () => 500, now = Date.now } = {}) {
   let items;
   try {
     items = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (!Array.isArray(items)) throw new Error('history.json is not an array');
   } catch (err) {
     if (err.code !== 'ENOENT') {
       try { fs.renameSync(file, file + '.bak'); } catch {}
