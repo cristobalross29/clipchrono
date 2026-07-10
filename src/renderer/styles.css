@@ -106,3 +106,55 @@ footer {
 }
 .recorder.recording { border-color: #0a84ff; color: #0a84ff; }
 #set-hotkey-hint { min-height: 14px; margin-top: -8px; }
+
+.header-row { display: flex; gap: 6px; }
+.header-row #search { flex: 1; }
+#folder-select {
+  max-width: 110px;
+  font: inherit;
+  font-size: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  background: rgba(128, 128, 128, 0.12);
+  color: inherit;
+  padding: 0 4px;
+}
+#folder-name-row { padding-top: 6px; }
+#folder-name-row input {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #0a84ff;
+  background: rgba(128, 128, 128, 0.12);
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+#folder-name-row input.error { border-color: #ff453a; }
+#folder-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 2px 0;
+  font-weight: 600;
+}
+#folder-popover {
+  position: fixed;
+  z-index: 10;
+  border-radius: 8px;
+  padding: 4px;
+  background: rgba(50, 50, 52, 0.98);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  color: #f5f5f7;
+}
+@media (prefers-color-scheme: light) {
+  #folder-popover { background: rgba(245, 245, 247, 0.98); color: #1d1d1f; }
+}
+.folder-popover-item {
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.folder-popover-item:hover { background: #0a84ff; color: #fff; }

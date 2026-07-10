@@ -8,7 +8,20 @@
 <body>
   <div id="list-view">
     <header>
-      <input id="search" type="text" placeholder="Search clipboard history…" autofocus>
+      <div class="header-row">
+        <input id="search" type="text" placeholder="Search clipboard history…" autofocus>
+        <select id="folder-select" title="Folder"></select>
+      </div>
+      <div id="folder-name-row" hidden>
+        <input id="folder-name-input" type="text" placeholder="Folder name…" maxlength="40">
+        <div class="hint" id="folder-name-hint"></div>
+      </div>
+      <div id="folder-header" hidden>
+        <span id="folder-title"></span>
+        <span class="spacer"></span>
+        <button id="folder-rename" class="icon-btn" title="Rename folder">✎</button>
+        <button id="folder-delete" class="icon-btn" title="Delete folder">🗑</button>
+      </div>
     </header>
     <main id="items"></main>
     <footer>

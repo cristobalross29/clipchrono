@@ -3,10 +3,21 @@ const itemsEl = $('#items');
 const searchEl = $('#search');
 const deleteBtn = $('#delete-selected');
 const selCountEl = $('#sel-count');
+const folderSelect = $('#folder-select');
+const nameRow = $('#folder-name-row');
+const nameInput = $('#folder-name-input');
+const nameHint = $('#folder-name-hint');
+const folderHeader = $('#folder-header');
+const folderTitle = $('#folder-title');
 
 let items = [];
 let activeIndex = 0;
 let selection = new Set();
+
+let currentFolderId = null;
+let folderCache = [];
+let nameMode = null; // 'create' | 'rename' | 'create-and-move'
+let pendingFolderItemId = null;
 
 function showView(name) {
   $('#list-view').hidden = name !== 'list';
@@ -27,7 +38,7 @@ function timeAgo(ts) {
 let refreshSeq = 0;
 async function refresh() {
   const seq = ++refreshSeq;
-  const result = await clipchrono.list(searchEl.value);
+  const result = await clipchrono.list(searchEl.value, currentFolderId);
   if (seq !== refreshSeq) return; // a newer refresh superseded this one
   items = result;
   selection = new Set([...selection].filter((id) => items.some((i) => i.id === id)));
@@ -40,7 +51,11 @@ function render() {
   if (!items.length) {
     const div = document.createElement('div');
     div.className = 'empty';
-    div.textContent = searchEl.value ? 'No matches' : 'Copy something — it will show up here';
+    div.textContent = searchEl.value
+      ? 'No matches'
+      : currentFolderId
+        ? 'No clips in this folder yet — use 📁 on any clip'
+        : 'Copy something — it will show up here';
     itemsEl.appendChild(div);
   }
   items.forEach((item, idx) => {
@@ -95,7 +110,15 @@ function render() {
       await clipchrono.remove([item.id]);
       refresh();
     };
-    actions.append(pinBtn, delBtn);
+    const folderBtn = document.createElement('button');
+    folderBtn.className = 'icon-btn';
+    folderBtn.title = 'Move to folder';
+    folderBtn.textContent = '📁';
+    folderBtn.onclick = (e) => {
+      e.stopPropagation();
+      openFolderPopover(item, folderBtn);
+    };
+    actions.append(folderBtn, pinBtn, delBtn);
     row.appendChild(actions);
 
     row.onclick = (e) => {
@@ -134,11 +157,147 @@ $('#clear-all').onclick = async () => {
 
 $('#open-settings').onclick = () => showView('settings');
 
+let folderSeq = 0;
+async function refreshFolderSelect() {
+  const seq = ++folderSeq;
+  const fetched = await clipchrono.listFolders();
+  if (seq !== folderSeq) return; // a newer folder refresh superseded this one
+  folderCache = fetched;
+  if (currentFolderId && !folderCache.some((f) => f.id === currentFolderId)) currentFolderId = null;
+  folderSelect.innerHTML = '';
+  folderSelect.add(new Option('All', ''));
+  for (const f of folderCache) folderSelect.add(new Option(f.name, f.id));
+  if (folderCache.length) {
+    const sep = new Option('──────────', '__sep__');
+    sep.disabled = true;
+    folderSelect.add(sep);
+  }
+  folderSelect.add(new Option('+ New folder…', '__new__'));
+  folderSelect.value = currentFolderId || '';
+  const current = folderCache.find((f) => f.id === currentFolderId);
+  folderHeader.hidden = !current;
+  if (current) folderTitle.textContent = current.name;
+}
+
+function cancelNameRow() {
+  nameMode = null;
+  pendingFolderItemId = null;
+  nameRow.hidden = true;
+  nameInput.value = '';
+  nameInput.classList.remove('error');
+  nameHint.textContent = '';
+  folderSelect.value = currentFolderId || '';
+  searchEl.focus();
+}
+
+function openNameRow(mode, prefill) {
+  nameMode = mode;
+  nameRow.hidden = false;
+  nameInput.value = prefill || '';
+  nameInput.classList.remove('error');
+  nameInput.focus();
+  nameInput.select();
+}
+
+async function confirmNameRow() {
+  const name = nameInput.value.trim();
+  if (!name) { cancelNameRow(); return; }
+  let folder = null;
+  if (nameMode === 'rename') folder = await clipchrono.renameFolder(currentFolderId, name);
+  else folder = await clipchrono.createFolder(name);
+  if (!folder) {
+    nameInput.classList.add('error');
+    nameHint.textContent = 'Name already exists';
+    nameInput.select();
+    return;
+  }
+  if (nameMode === 'create-and-move' && pendingFolderItemId) {
+    await clipchrono.setItemFolder(pendingFolderItemId, folder.id);
+  }
+  if (nameMode !== 'rename') currentFolderId = folder.id;
+  cancelNameRow();
+  await refreshFolderSelect();
+  refresh();
+}
+
+nameInput.addEventListener('keydown', (e) => {
+  e.stopPropagation();
+  if (e.key === 'Enter') confirmNameRow();
+  else if (e.key === 'Escape') cancelNameRow();
+});
+nameInput.addEventListener('blur', () => { if (nameMode) cancelNameRow(); });
+
+folderSelect.onchange = () => {
+  if (folderSelect.value === '__new__') {
+    openNameRow('create', '');
+    return;
+  }
+  currentFolderId = folderSelect.value || null;
+  activeIndex = 0;
+  selection.clear();
+  refreshFolderSelect().then(refresh);
+};
+
+$('#folder-rename').onclick = () => openNameRow('rename', folderTitle.textContent);
+
+$('#folder-delete').onclick = async () => {
+  const count = (await clipchrono.list('', currentFolderId)).length; // full folder count, ignoring any active search
+  if (!confirm(`Delete folder "${folderTitle.textContent}" and its ${count} clip${count === 1 ? '' : 's'}?`)) return;
+  await clipchrono.deleteFolder(currentFolderId);
+  currentFolderId = null;
+  await refreshFolderSelect();
+  refresh();
+};
+
+let folderPopover = null;
+
+function closeFolderPopover() {
+  if (folderPopover) { folderPopover.remove(); folderPopover = null; }
+}
+
+function openFolderPopover(item, anchor) {
+  closeFolderPopover();
+  const pop = document.createElement('div');
+  pop.id = 'folder-popover';
+  const addChoice = (label, fn) => {
+    const el = document.createElement('div');
+    el.className = 'folder-popover-item';
+    el.textContent = label;
+    el.onclick = async (e) => {
+      e.stopPropagation();
+      closeFolderPopover();
+      await fn();
+      await refreshFolderSelect();
+      refresh();
+    };
+    pop.appendChild(el);
+  };
+  if (item.folderId) addChoice('All (remove from folder)', () => clipchrono.setItemFolder(item.id, null));
+  for (const f of folderCache) {
+    if (f.id !== item.folderId) addChoice(f.name, () => clipchrono.setItemFolder(item.id, f.id));
+  }
+  addChoice('+ New…', async () => {
+    pendingFolderItemId = item.id;
+    openNameRow('create-and-move', '');
+  });
+  document.body.appendChild(pop);
+  const r = anchor.getBoundingClientRect();
+  pop.style.top = Math.min(r.bottom + 4, window.innerHeight - pop.offsetHeight - 8) + 'px';
+  pop.style.left = Math.min(r.left - pop.offsetWidth + anchor.offsetWidth, window.innerWidth - pop.offsetWidth - 8) + 'px';
+  folderPopover = pop;
+}
+
+document.addEventListener('click', (e) => {
+  if (folderPopover && !folderPopover.contains(e.target)) closeFolderPopover();
+});
+
 document.addEventListener('keydown', (e) => {
   if (!$('#settings-view').hidden) {
     if (e.key === 'Escape') showView('list');
     return;
   }
+  const t = e.target;
+  if (t !== searchEl && (t.tagName === 'SELECT' || t.tagName === 'BUTTON' || t === nameInput)) return;
   if (e.key === 'ArrowDown') {
     e.preventDefault();
     activeIndex = Math.min(activeIndex + 1, items.length - 1);
@@ -157,8 +316,10 @@ document.addEventListener('keydown', (e) => {
       clipchrono.remove(ids).then(() => { selection.clear(); refresh(); });
     }
   } else if (e.key === 'Escape') {
-    if (selection.size) { selection.clear(); render(); }
+    if (folderPopover) { closeFolderPopover(); }
+    else if (selection.size) { selection.clear(); render(); }
     else if (searchEl.value) { searchEl.value = ''; refresh(); }
+    else if (currentFolderId) { currentFolderId = null; refreshFolderSelect().then(refresh); }
     else clipchrono.hidePanel();
   }
 });
@@ -168,8 +329,13 @@ clipchrono.onShow(() => {
   selection.clear();
   activeIndex = 0;
   showView('list');
+  currentFolderId = null;
+  closeFolderPopover();
+  cancelNameRow();
+  refreshFolderSelect();
   refresh();
 });
 clipchrono.onHistoryChanged(() => refresh());
 
 refresh();
+refreshFolderSelect();
