@@ -110,3 +110,14 @@ test('touch moves item to front and bumps lastUsedAt', () => {
   assert.strictEqual(s.list()[0].id, a.id);
   assert.strictEqual(s.get(a.id).lastUsedAt, 3000);
 });
+
+test('corrupt history.json is renamed to .bak and store starts empty', () => {
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, 'history.json'), '{not valid json');
+  const s = createStore(dir);
+  assert.strictEqual(s.list().length, 0);
+  assert.ok(fs.existsSync(path.join(dir, 'history.json.bak')));
+  assert.strictEqual(fs.readFileSync(path.join(dir, 'history.json.bak'), 'utf8'), '{not valid json');
+  s.addText('after-corruption');
+  assert.deepStrictEqual(s.list().map((i) => i.text), ['after-corruption']);
+});
