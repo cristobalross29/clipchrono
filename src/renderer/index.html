@@ -18,7 +18,44 @@
       <button id="open-settings" class="footer-btn" title="Settings">⚙︎</button>
     </footer>
   </div>
-  <div id="settings-view" hidden></div>
+  <div id="settings-view" hidden>
+    <h2>Settings</h2>
+    <div class="setting-row">
+      <label>Open panel shortcut</label>
+      <select id="set-hotkey">
+        <option value="CommandOrControl+Shift+V">⌘⇧V</option>
+        <option value="Control+Command+V">⌃⌘V</option>
+        <option value="CommandOrControl+Alt+V">⌘⌥V</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <label>History size (items)</label>
+      <input id="set-max" type="number" min="50" max="5000" step="50">
+    </div>
+    <div class="setting-row">
+      <label>Auto-delete unused items</label>
+      <select id="set-expire">
+        <option value="0">Never</option>
+        <option value="7">After 7 days</option>
+        <option value="30">After 30 days</option>
+        <option value="90">After 90 days</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <label>Start at login</label>
+      <input id="set-login" type="checkbox">
+    </div>
+    <div class="setting-row">
+      <label>Auto-paste on click</label>
+      <span class="hint" id="set-access"></span>
+    </div>
+    <div class="settings-footer">
+      <button id="settings-back" class="footer-btn">‹ Back</button>
+      <span class="spacer"></span>
+      <span class="hint" id="set-version"></span>
+      <button id="app-quit" class="footer-btn danger">Quit Pastport</button>
+    </div>
+  </div>
   <script src="panel.js"></script>
   <script src="settings.js"></script>
 </body>
