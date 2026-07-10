@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('pastport', {
   clearAll: () => ipcRenderer.invoke('history:clear'),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),
+  setHotkeyRecording: (on) => ipcRenderer.invoke('hotkey:recording', on),
   hidePanel: () => ipcRenderer.invoke('panel:hide'),
   quit: () => ipcRenderer.invoke('app:quit'),
   requestAccessibility: () => ipcRenderer.invoke('welcome:accessibility'),

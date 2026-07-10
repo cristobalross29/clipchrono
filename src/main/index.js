@@ -63,6 +63,7 @@ function createPanel() {
   });
   panel.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   panel.on('blur', () => panel.hide());
+  panel.on('hide', () => registerHotkey());
 }
 
 function showPanel(nearTray = false) {
@@ -87,11 +88,12 @@ function togglePanel(nearTray) {
   else showPanel(nearTray);
 }
 
+function tryRegister(accel) {
+  try { return globalShortcut.register(accel, () => togglePanel(false)); } catch { return false; }
+}
+
 function registerHotkey() {
   globalShortcut.unregisterAll();
-  const tryRegister = (accel) => {
-    try { return globalShortcut.register(accel, () => togglePanel(false)); } catch { return false; }
-  };
   const wanted = settings.get().hotkey;
   if (!tryRegister(wanted) && wanted !== DEFAULTS.hotkey) {
     settings.set({ hotkey: DEFAULTS.hotkey });
@@ -139,14 +141,26 @@ function setupIpc() {
 
   ipcMain.handle('settings:set', (_e, patch) => {
     const before = settings.get();
-    const after = settings.set(patch);
-    if (after.hotkey !== before.hotkey) registerHotkey();
+    const { hotkey: requestedHotkey, ...rest } = patch;
+    if (typeof requestedHotkey === 'string' && requestedHotkey !== before.hotkey) {
+      // probe WITHOUT touching the old registration: a rejected probe changes nothing
+      if (tryRegister(requestedHotkey)) {
+        try { globalShortcut.unregister(before.hotkey); } catch {}
+        settings.set({ hotkey: requestedHotkey });
+      }
+    }
+    const after = settings.set(rest);
     if (after.launchAtLogin !== before.launchAtLogin) {
       if (after.launchAtLogin) launchagent.install({ execPath: process.execPath, appPath: app.getAppPath() });
       else launchagent.uninstall({});
     }
     if (after.expireDays !== before.expireDays) store.expire(after.expireDays);
-    return settings.get(); // registerHotkey() may have reverted a failed hotkey; return actual state
+    return settings.get();
+  });
+
+  ipcMain.handle('hotkey:recording', (_e, on) => {
+    if (on) globalShortcut.unregisterAll();
+    else registerHotkey();
   });
 
   ipcMain.handle('panel:hide', () => { panel.hide(); app.hide(); });
