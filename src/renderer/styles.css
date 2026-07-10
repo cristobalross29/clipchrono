@@ -93,3 +93,16 @@ footer {
 }
 .settings-footer { margin-top: auto; display: flex; align-items: center; }
 .hint { font-size: 11px; opacity: 0.55; }
+
+.recorder {
+  font: inherit;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  background: rgba(128, 128, 128, 0.12);
+  color: inherit;
+  cursor: pointer;
+  min-width: 96px;
+}
+.recorder.recording { border-color: #0a84ff; color: #0a84ff; }
+#set-hotkey-hint { min-height: 14px; margin-top: -8px; }
