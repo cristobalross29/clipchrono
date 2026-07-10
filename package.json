@@ -1,7 +1,7 @@
 {
   "name": "clipchrono",
-  "version": "0.1.0",
-  "description": "Your passport to everything you've copied \u2014 a macOS menu-bar clipboard with memory.",
+  "version": "0.1.1",
+  "description": "A macOS menu-bar clipboard with memory \u2014 searchable history, folders for your snippets, and instant paste.",
   "license": "MIT",
   "os": [
     "darwin"

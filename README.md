@@ -1,6 +1,6 @@
 # 📋 ClipChrono
 
-Your passport to everything you've copied — a macOS menu-bar clipboard with memory.
+A macOS menu-bar clipboard with memory — searchable history, folders for your snippets, and instant paste.
 
 ## Install
 
@@ -18,9 +18,10 @@ That's it — you never need the terminal again. ClipChrono lives in your menu b
 - **⌘⇧V** anywhere → your clipboard history pops up
 - **Click** any item → it's pasted right where you were (grant Accessibility once when asked)
 - **Search** to find that thing you copied last Tuesday
+- **📁 Folders** → organize snippets you keep forever: hover a clip → 📁 → pick or create a folder (e.g. "CLI", one per project). Foldered clips leave the history stream and never expire; switch folders with the dropdown next to search
 - **📌 Pin** items you reuse; pins survive Clear
 - **⌘-click** to select several items and delete them together
-- **⚙︎ Settings** → change the shortcut, history size, auto-expiry, start-at-login
+- **⚙︎ Settings** → record ANY keyboard shortcut (click the shortcut field and press your combo), history size, auto-expiry, start-at-login
 
 ## What it captures
 
