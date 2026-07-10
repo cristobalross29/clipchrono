@@ -5,13 +5,13 @@ const os = require('node:os');
 const path = require('node:path');
 const { plistFor, plistPath, install, uninstall, LABEL } = require('../src/main/launchagent');
 
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'pastport-'));
+const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'clipchrono-'));
 
 test('plist contains label, exec path, app path, RunAtLoad', () => {
-  const xml = plistFor({ execPath: '/usr/local/Electron', appPath: '/apps/pastport' });
+  const xml = plistFor({ execPath: '/usr/local/Electron', appPath: '/apps/clipchrono' });
   assert.ok(xml.includes(`<string>${LABEL}</string>`));
   assert.ok(xml.includes('<string>/usr/local/Electron</string>'));
-  assert.ok(xml.includes('<string>/apps/pastport</string>'));
+  assert.ok(xml.includes('<string>/apps/clipchrono</string>'));
   assert.ok(xml.includes('<key>RunAtLoad</key><true/>'));
 });
 

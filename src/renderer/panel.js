@@ -27,7 +27,7 @@ function timeAgo(ts) {
 let refreshSeq = 0;
 async function refresh() {
   const seq = ++refreshSeq;
-  const result = await pastport.list(searchEl.value);
+  const result = await clipchrono.list(searchEl.value);
   if (seq !== refreshSeq) return; // a newer refresh superseded this one
   items = result;
   selection = new Set([...selection].filter((id) => items.some((i) => i.id === id)));
@@ -83,7 +83,7 @@ function render() {
     pinBtn.textContent = '📌';
     pinBtn.onclick = async (e) => {
       e.stopPropagation();
-      await pastport.setPinned(item.id, !item.pinned);
+      await clipchrono.setPinned(item.id, !item.pinned);
       refresh();
     };
     const delBtn = document.createElement('button');
@@ -92,7 +92,7 @@ function render() {
     delBtn.textContent = '✕';
     delBtn.onclick = async (e) => {
       e.stopPropagation();
-      await pastport.remove([item.id]);
+      await clipchrono.remove([item.id]);
       refresh();
     };
     actions.append(pinBtn, delBtn);
@@ -104,7 +104,7 @@ function render() {
         updateSelectionUI();
         render();
       } else {
-        pastport.select(item.id);
+        clipchrono.select(item.id);
         selection.clear();
         updateSelectionUI();
       }
@@ -122,13 +122,13 @@ function updateSelectionUI() {
 searchEl.addEventListener('input', () => { activeIndex = 0; refresh(); });
 
 deleteBtn.onclick = async () => {
-  await pastport.remove([...selection]);
+  await clipchrono.remove([...selection]);
   selection.clear();
   refresh();
 };
 
 $('#clear-all').onclick = async () => {
-  await pastport.clearAll();
+  await clipchrono.clearAll();
   refresh();
 };
 
@@ -150,26 +150,26 @@ document.addEventListener('keydown', (e) => {
     render();
     itemsEl.children[activeIndex]?.scrollIntoView({ block: 'nearest' });
   } else if (e.key === 'Enter' && items[activeIndex]) {
-    pastport.select(items[activeIndex].id);
+    clipchrono.select(items[activeIndex].id);
   } else if ((e.key === 'Backspace' || e.key === 'Delete') && document.activeElement !== searchEl) {
     const ids = selection.size ? [...selection] : items[activeIndex] ? [items[activeIndex].id] : [];
     if (ids.length) {
-      pastport.remove(ids).then(() => { selection.clear(); refresh(); });
+      clipchrono.remove(ids).then(() => { selection.clear(); refresh(); });
     }
   } else if (e.key === 'Escape') {
     if (selection.size) { selection.clear(); render(); }
     else if (searchEl.value) { searchEl.value = ''; refresh(); }
-    else pastport.hidePanel();
+    else clipchrono.hidePanel();
   }
 });
 
-pastport.onShow(() => {
+clipchrono.onShow(() => {
   searchEl.value = '';
   selection.clear();
   activeIndex = 0;
   showView('list');
   refresh();
 });
-pastport.onHistoryChanged(() => refresh());
+clipchrono.onHistoryChanged(() => refresh());
 
 refresh();

@@ -1,5 +1,5 @@
 {
-  "name": "pastport",
+  "name": "clipchrono",
   "version": "0.1.0",
   "description": "Your passport to everything you've copied \u2014 a macOS menu-bar clipboard with memory.",
   "license": "MIT",
@@ -11,7 +11,7 @@
   },
   "main": "src/main/index.js",
   "bin": {
-    "pastport": "bin/pastport.js"
+    "clipchrono": "bin/clipchrono.js"
   },
   "files": [
     "bin",
@@ -34,10 +34,10 @@
   "author": "Cristobal Ross",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cristobalross29/pastport.git"
+    "url": "git+https://github.com/cristobalross29/clipchrono.git"
   },
-  "homepage": "https://github.com/cristobalross29/pastport#readme",
+  "homepage": "https://github.com/cristobalross29/clipchrono#readme",
   "bugs": {
-    "url": "https://github.com/cristobalross29/pastport/issues"
+    "url": "https://github.com/cristobalross29/clipchrono/issues"
   }
 }

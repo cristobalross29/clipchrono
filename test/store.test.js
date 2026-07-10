@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { createStore } = require('../src/main/store');
 
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'pastport-'));
+const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'clipchrono-'));
 const PNG = Buffer.from('fakepng-full');
 const THUMB = Buffer.from('fakepng-thumb');
 

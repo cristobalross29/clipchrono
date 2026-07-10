@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { createSettings, DEFAULTS } = require('../src/main/settings');
 
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'pastport-'));
+const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'clipchrono-'));
 
 test('returns defaults when no file exists', () => {
   const s = createSettings(tmp());

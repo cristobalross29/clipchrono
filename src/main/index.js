@@ -7,7 +7,7 @@ const { createWatcher } = require('./watcher');
 const launchagent = require('./launchagent');
 const { sendPasteKeystroke } = require('./paster');
 
-app.setName('Pastport');
+app.setName('ClipChrono');
 if (!app.requestSingleInstanceLock()) app.quit();
 
 const dataDir = () => app.getPath('userData');
@@ -107,7 +107,7 @@ function showWelcome() {
     height: 520,
     resizable: false,
     fullscreenable: false,
-    title: 'Welcome to Pastport',
+    title: 'Welcome to ClipChrono',
     webPreferences: { preload: path.join(__dirname, '..', 'preload.js') },
   });
   welcome.loadFile(path.join(__dirname, '..', 'renderer', 'welcome.html'));
@@ -203,9 +203,9 @@ app.whenReady().then(() => {
   tray.on('click', () => togglePanel(true));
   tray.on('right-click', () => {
     tray.popUpContextMenu(Menu.buildFromTemplate([
-      { label: 'Open Pastport', click: () => showPanel(true) },
+      { label: 'Open ClipChrono', click: () => showPanel(true) },
       { type: 'separator' },
-      { label: 'Quit Pastport', role: 'quit' },
+      { label: 'Quit ClipChrono', role: 'quit' },
     ]));
   });
 

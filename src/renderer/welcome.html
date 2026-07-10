@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Welcome to Pastport</title>
+  <title>Welcome to ClipChrono</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -33,12 +33,12 @@
 </head>
 <body>
   <div class="logo">📋</div>
-  <h1>Welcome to Pastport</h1>
+  <h1>Welcome to ClipChrono</h1>
   <p class="sub">Your passport to everything you've copied.</p>
 
   <div class="step">
     <div class="n">1</div>
-    <div><b>Copy like you always do</b><p>Pastport quietly remembers your last 500 copies — text and images.</p></div>
+    <div><b>Copy like you always do</b><p>ClipChrono quietly remembers your last 500 copies — text and images.</p></div>
   </div>
   <div class="step">
     <div class="n">2</div>
@@ -53,24 +53,24 @@
     </div>
   </div>
 
-  <button id="start">Start using Pastport</button>
+  <button id="start">Start using ClipChrono</button>
 
   <script>
     const accessBtn = document.getElementById('enable-access');
     async function refreshAccess() {
-      const s = await pastport.getSettings();
+      const s = await clipchrono.getSettings();
       if (s.accessibilityOk) {
         accessBtn.textContent = 'Auto-paste enabled ✓';
         accessBtn.classList.add('ok');
       }
     }
     accessBtn.onclick = async () => {
-      await pastport.requestAccessibility();
+      await clipchrono.requestAccessibility();
       setTimeout(refreshAccess, 1500);
     };
     setInterval(refreshAccess, 2000);
     refreshAccess();
-    document.getElementById('start').onclick = () => pastport.finishOnboarding();
+    document.getElementById('start').onclick = () => clipchrono.finishOnboarding();
   </script>
 </body>
 </html>

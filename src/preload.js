@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('pastport', {
+contextBridge.exposeInMainWorld('clipchrono', {
   list: (query) => ipcRenderer.invoke('history:list', query),
   select: (id) => ipcRenderer.invoke('item:select', id),
   remove: (ids) => ipcRenderer.invoke('item:remove', ids),

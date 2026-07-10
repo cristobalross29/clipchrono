@@ -1,17 +1,17 @@
-# 📋 Pastport
+# 📋 ClipChrono
 
 Your passport to everything you've copied — a macOS menu-bar clipboard with memory.
 
 ## Install
 
 ```bash
-npm install -g pastport
-pastport
+npm install -g clipchrono
+clipchrono
 ```
 
-That's it — you never need the terminal again. Pastport lives in your menu bar and starts automatically at login.
+That's it — you never need the terminal again. ClipChrono lives in your menu bar and starts automatically at login.
 
-**Requirements:** macOS, Node.js 22.12+. The install downloads Electron (~100MB) once. When macOS asks you to grant Accessibility for auto-paste, the app appears as "Electron" — that's Pastport's runtime.
+**Requirements:** macOS, Node.js 22.12+. The install downloads Electron (~100MB) once. When macOS asks you to grant Accessibility for auto-paste, the app appears as "Electron" — that's ClipChrono's runtime.
 
 ## Use
 
@@ -24,16 +24,16 @@ That's it — you never need the terminal again. Pastport lives in your menu bar
 
 ## What it captures
 
-Text and images, up to 500 items (configurable). Items copied from password managers that mark them confidential are never recorded. Everything stays on your Mac in `~/Library/Application Support/Pastport` — nothing leaves your machine.
+Text and images, up to 500 items (configurable). Items copied from password managers that mark them confidential are never recorded. Everything stays on your Mac in `~/Library/Application Support/ClipChrono` — nothing leaves your machine.
 
 ## Uninstall
 
-Quit Pastport from Settings, then:
+Quit ClipChrono from Settings, then:
 
 ```bash
-launchctl bootout gui/$(id -u)/com.pastport.agent
-npm uninstall -g pastport
-rm -rf ~/Library/Application\ Support/Pastport ~/Library/LaunchAgents/com.pastport.agent.plist
+launchctl bootout gui/$(id -u)/com.clipchrono.agent
+npm uninstall -g clipchrono
+rm -rf ~/Library/Application\ Support/ClipChrono ~/Library/LaunchAgents/com.clipchrono.agent.plist
 ```
 
 ## License

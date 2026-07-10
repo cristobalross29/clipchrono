@@ -12,7 +12,7 @@ function stopRecording() {
   if (armState === 'idle') return;
   const wasRecording = armState === 'recording';
   armState = 'idle';
-  if (wasRecording) pastport.setHotkeyRecording(false);
+  if (wasRecording) clipchrono.setHotkeyRecording(false);
   showHotkey();
 }
 
@@ -25,11 +25,11 @@ recorderBtn.onclick = async () => {
   recorderBtn.focus();
   let armed = false;
   try {
-    await pastport.setHotkeyRecording(true);
+    await clipchrono.setHotkeyRecording(true);
     armed = true;
   } catch {}
   if (!armed || armState !== 'arming') {
-    if (armed) pastport.setHotkeyRecording(false); // blur landed mid-arm: undo the suspension
+    if (armed) clipchrono.setHotkeyRecording(false); // blur landed mid-arm: undo the suspension
     if (armState === 'arming') armState = 'idle';
     showHotkey();
     return;
@@ -52,20 +52,20 @@ recorderBtn.addEventListener('keydown', async (e) => {
   }
   armState = 'idle';
   try {
-    const s = await pastport.setSettings({ hotkey: accel });
+    const s = await clipchrono.setSettings({ hotkey: accel });
     currentHotkey = s.hotkey;
     hotkeyHint.textContent = s.hotkey === accel ? '' : 'In use by another app';
   } catch {
     hotkeyHint.textContent = 'Could not save shortcut';
   } finally {
-    await pastport.setHotkeyRecording(false); // never leave the shortcut unregistered
+    await clipchrono.setHotkeyRecording(false); // never leave the shortcut unregistered
     showHotkey();
     recorderBtn.blur();
   }
 });
 
 async function loadSettingsView() {
-  const s = await pastport.getSettings();
+  const s = await clipchrono.getSettings();
   currentHotkey = s.hotkey;
   showHotkey();
   document.querySelector('#set-max').value = s.maxItems;
@@ -80,9 +80,9 @@ document.querySelector('#set-max').onchange = (e) => {
   const n = Number(e.target.value);
   const v = e.target.value === '' || !Number.isFinite(n) ? 500 : Math.max(50, Math.min(5000, n));
   e.target.value = v;
-  pastport.setSettings({ maxItems: v });
+  clipchrono.setSettings({ maxItems: v });
 };
-document.querySelector('#set-expire').onchange = (e) => pastport.setSettings({ expireDays: Number(e.target.value) });
-document.querySelector('#set-login').onchange = (e) => pastport.setSettings({ launchAtLogin: e.target.checked });
+document.querySelector('#set-expire').onchange = (e) => clipchrono.setSettings({ expireDays: Number(e.target.value) });
+document.querySelector('#set-login').onchange = (e) => clipchrono.setSettings({ launchAtLogin: e.target.checked });
 document.querySelector('#settings-back').onclick = () => showView('list');
-document.querySelector('#app-quit').onclick = () => pastport.quit();
+document.querySelector('#app-quit').onclick = () => clipchrono.quit();
