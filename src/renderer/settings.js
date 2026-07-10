@@ -11,7 +11,8 @@ window.loadSettingsView = loadSettingsView;
 
 document.querySelector('#set-hotkey').onchange = (e) => pastport.setSettings({ hotkey: e.target.value });
 document.querySelector('#set-max').onchange = (e) => {
-  const v = Math.max(50, Math.min(5000, Number(e.target.value) || 500));
+  const n = Number(e.target.value);
+  const v = e.target.value === '' || !Number.isFinite(n) ? 500 : Math.max(50, Math.min(5000, n));
   e.target.value = v;
   pastport.setSettings({ maxItems: v });
 };
