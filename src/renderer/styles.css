@@ -16,6 +16,7 @@ html, body {
 }
 
 #list-view, #settings-view { display: flex; flex-direction: column; height: 100%; }
+[hidden] { display: none !important; } /* the ID rules above would otherwise override the hidden attribute */
 
 header { padding: 10px 10px 6px; }
 
