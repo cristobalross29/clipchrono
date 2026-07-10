@@ -235,6 +235,7 @@ folderSelect.onchange = () => {
   currentFolderId = folderSelect.value || null;
   activeIndex = 0;
   selection.clear();
+  searchEl.focus(); // return focus so list keyboard nav keeps working after a dropdown pick
   refreshFolderSelect().then(refresh);
 };
 
@@ -281,6 +282,7 @@ function openFolderPopover(item, anchor) {
     openNameRow('create-and-move', '');
   });
   document.body.appendChild(pop);
+  anchor.blur(); // keep keyboard nav alive while the popover is open
   const r = anchor.getBoundingClientRect();
   pop.style.top = Math.min(r.bottom + 4, window.innerHeight - pop.offsetHeight - 8) + 'px';
   pop.style.left = Math.min(r.left - pop.offsetWidth + anchor.offsetWidth, window.innerWidth - pop.offsetWidth - 8) + 'px';
@@ -297,7 +299,7 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   const t = e.target;
-  if (t !== searchEl && (t.tagName === 'SELECT' || t.tagName === 'BUTTON' || t === nameInput)) return;
+  if (e.key !== 'Escape' && t !== searchEl && (t.tagName === 'SELECT' || t.tagName === 'BUTTON' || t === nameInput)) return;
   if (e.key === 'ArrowDown') {
     e.preventDefault();
     activeIndex = Math.min(activeIndex + 1, items.length - 1);
@@ -330,6 +332,7 @@ clipchrono.onShow(() => {
   activeIndex = 0;
   showView('list');
   currentFolderId = null;
+  folderHeader.hidden = true; // hide synchronously; refreshFolderSelect would only catch it after an IPC round-trip
   closeFolderPopover();
   cancelNameRow();
   refreshFolderSelect();
