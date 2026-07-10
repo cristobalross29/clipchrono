@@ -1,6 +1,6 @@
 const recorderBtn = document.querySelector('#set-hotkey-recorder');
 const hotkeyHint = document.querySelector('#set-hotkey-hint');
-let recording = false;
+let armState = 'idle'; // 'idle' | 'arming' | 'recording' — blur during the arming await must not orphan the suspension
 let currentHotkey = '';
 
 function showHotkey() {
@@ -9,27 +9,39 @@ function showHotkey() {
 }
 
 function stopRecording() {
-  if (!recording) return;
-  recording = false;
-  pastport.setHotkeyRecording(false);
+  if (armState === 'idle') return;
+  const wasRecording = armState === 'recording';
+  armState = 'idle';
+  if (wasRecording) pastport.setHotkeyRecording(false);
   showHotkey();
 }
 
 recorderBtn.onclick = async () => {
-  if (recording) return;
+  if (armState !== 'idle') return;
+  armState = 'arming';
   hotkeyHint.textContent = '';
   recorderBtn.textContent = 'Press keys…';
   recorderBtn.classList.add('recording');
   recorderBtn.focus();
-  await pastport.setHotkeyRecording(true); // arm only after the global shortcut is suspended
-  recording = true;
+  let armed = false;
+  try {
+    await pastport.setHotkeyRecording(true);
+    armed = true;
+  } catch {}
+  if (!armed || armState !== 'arming') {
+    if (armed) pastport.setHotkeyRecording(false); // blur landed mid-arm: undo the suspension
+    if (armState === 'arming') armState = 'idle';
+    showHotkey();
+    return;
+  }
+  armState = 'recording';
 };
 
 recorderBtn.onblur = () => stopRecording();
 window.addEventListener('blur', () => stopRecording());
 
 recorderBtn.addEventListener('keydown', async (e) => {
-  if (!recording) return;
+  if (armState !== 'recording') return;
   e.preventDefault();
   e.stopPropagation();
   if (e.code === 'Escape') { stopRecording(); return; }
@@ -38,11 +50,13 @@ recorderBtn.addEventListener('keydown', async (e) => {
     if (accelerator.keyFromCode(e.code)) hotkeyHint.textContent = 'Include ⌘, ⌃ or ⌥';
     return;
   }
-  recording = false;
+  armState = 'idle';
   try {
     const s = await pastport.setSettings({ hotkey: accel });
     currentHotkey = s.hotkey;
     hotkeyHint.textContent = s.hotkey === accel ? '' : 'In use by another app';
+  } catch {
+    hotkeyHint.textContent = 'Could not save shortcut';
   } finally {
     await pastport.setHotkeyRecording(false); // never leave the shortcut unregistered
     showHotkey();
