@@ -11,7 +11,7 @@ pastport
 
 That's it — you never need the terminal again. Pastport lives in your menu bar and starts automatically at login.
 
-**Requirements:** macOS, Node.js 20+. The install downloads Electron (~100MB) once. When macOS asks you to grant Accessibility for auto-paste, the app appears as "Electron" — that's Pastport's runtime.
+**Requirements:** macOS, Node.js 22.12+. The install downloads Electron (~100MB) once. When macOS asks you to grant Accessibility for auto-paste, the app appears as "Electron" — that's Pastport's runtime.
 
 ## Use
 
