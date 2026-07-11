@@ -4,6 +4,12 @@ All notable changes to ClipChrono are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
 Each release is tagged (`vX.Y.Z`) — `git checkout vX.Y.Z` reproduces exactly what was published to npm.
 
+## [0.1.2] — 2026-07-11
+
+### Changed
+- Package homepage now points to the project website
+  (https://cristobalross29.com/clipchrono) instead of the GitHub README.
+
 ## [0.1.1] — 2026-07-10
 
 ### Added
@@ -37,5 +43,6 @@ rejected by npm as too similar to `passport`).
   recorded; deduplication ignores invisible-whitespace differences so
   re-copied text never double-stacks.
 
+[0.1.2]: https://github.com/cristobalross29/clipchrono/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/cristobalross29/clipchrono/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/cristobalross29/clipchrono/releases/tag/v0.1.0

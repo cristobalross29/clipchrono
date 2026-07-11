@@ -1,6 +1,6 @@
 {
   "name": "clipchrono",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A macOS menu-bar clipboard with memory \u2014 searchable history, folders for your snippets, and instant paste.",
   "license": "MIT",
   "os": [
@@ -36,7 +36,7 @@
     "type": "git",
     "url": "git+https://github.com/cristobalross29/clipchrono.git"
   },
-  "homepage": "https://github.com/cristobalross29/clipchrono#readme",
+  "homepage": "https://cristobalross29.com/clipchrono",
   "bugs": {
     "url": "https://github.com/cristobalross29/clipchrono/issues"
   }
