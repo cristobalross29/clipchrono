@@ -51,7 +51,7 @@ function createStore(dir, { getMaxItems = () => 500, now = Date.now } = {}) {
     let classified = false;
     for (const item of items) {
       if (item.type === 'text' && !('kind' in item)) {
-        item.kind = classifyText(item.text);
+        item.kind = typeof item.text === 'string' ? classifyText(item.text) : null;
         classified = true;
       }
     }
@@ -284,7 +284,7 @@ function createStore(dir, { getMaxItems = () => 500, now = Date.now } = {}) {
         if (raw.type === 'text') {
           item.text = raw.text;
           item.hash = sha1('text:' + normalizeForHash(raw.text));
-          item.kind = raw.kind === 'url' || raw.kind === 'code' ? raw.kind : classifyText(raw.text);
+          item.kind = classifyText(raw.text);
         } else if (raw.type === 'file') {
           item.paths = raw.paths;
           item.hash = sha1('file:' + JSON.stringify([...raw.paths].sort()));
@@ -313,14 +313,37 @@ function createStore(dir, { getMaxItems = () => 500, now = Date.now } = {}) {
       throw err;
     }
 
-    folders.push(...newFolders);
-    items.push(...newItems);
-    items.sort((a, b) => b.lastUsedAt - a.lastUsedAt);
-    enforceCap();
-    // folders first: orphan empty folders are harmless, items pointing at
-    // unpersisted folders would be stripped by the next launch's reconcile
-    persistFolders();
-    persist();
+    const oldItems = items, oldFolders = folders;
+    const candidateFolders = [...folders, ...newFolders];
+    const candidateItems = [...items, ...newItems];
+    candidateItems.sort((a, b) => b.lastUsedAt - a.lastUsedAt);
+
+    // compute eviction WITHOUT deleting files yet (cap counts only stream items)
+    const max = getMaxItems();
+    let streamCount = candidateItems.reduce((n, i) => n + (i.folderId ? 0 : 1), 0);
+    const evicted = [];
+    for (let i = candidateItems.length - 1; i >= 0 && streamCount > max; i--) {
+      if (!candidateItems[i].pinned && !candidateItems[i].folderId) {
+        evicted.push(candidateItems[i]);
+        candidateItems.splice(i, 1);
+        streamCount--;
+      }
+    }
+
+    items = candidateItems;
+    folders = candidateFolders;
+    try {
+      // folders first: orphan empty folders are harmless, items pointing at
+      // unpersisted folders would be stripped by the next launch's reconcile
+      persistFolders();
+      persist();
+    } catch (err) {
+      items = oldItems;
+      folders = oldFolders;
+      for (const p of copiedFiles) { try { fs.unlinkSync(p); } catch {} }
+      throw err;
+    }
+    for (const it of evicted) removeFiles(it);
     const retained = new Set(items.map((i) => i.id));
     return { added: newItems.length, kept: newItems.filter((i) => retained.has(i.id)).length };
   }

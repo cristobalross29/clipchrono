@@ -74,10 +74,16 @@ const toView = (i) => ({
   kind: i.kind || null,
   preview: i.type === 'text' ? i.text.slice(0, 300) : null,
   thumbUrl: i.type === 'image' ? pathToFileURL(i.thumbPath).href : null,
-  fileName: i.type === 'file' ? path.basename(i.paths[0]) : null,
-  fileDir: i.type === 'file' ? path.dirname(i.paths[0]) : null,
-  fileCount: i.type === 'file' ? i.paths.length : 0,
-  missing: i.type === 'file' ? !i.paths.every((p) => fs.existsSync(p)) : false,
+  ...(i.type === 'file'
+    ? Array.isArray(i.paths) && i.paths.length
+      ? {
+          fileName: path.basename(i.paths[0]),
+          fileDir: path.dirname(i.paths[0]),
+          fileCount: i.paths.length,
+          missing: !i.paths.every((p) => fs.existsSync(p)),
+        }
+      : { fileName: null, fileDir: null, fileCount: 0, missing: true }
+    : { fileName: null, fileDir: null, fileCount: 0, missing: false }),
 });
 
 const iconCache = new Map();
@@ -192,7 +198,11 @@ function setupIpc() {
 
   ipcMain.handle('item:openUrl', (_e, id) => {
     const item = store.get(id);
-    if (item && item.type === 'text' && item.kind === 'url') shell.openExternal(item.text.trim()).catch(() => {});
+    if (!item || item.type !== 'text') return;
+    try {
+      const u = new URL(item.text.trim());
+      if (u.protocol === 'http:' || u.protocol === 'https:') shell.openExternal(item.text.trim()).catch(() => {});
+    } catch {}
   });
 
   ipcMain.handle('item:remove', (_e, ids) => store.remove(ids));

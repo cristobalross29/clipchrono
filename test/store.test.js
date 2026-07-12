@@ -319,6 +319,51 @@ test('merge sorts by lastUsedAt, enforces the cap, and reports kept separately f
   assert.strictEqual(r.kept, 1);
 });
 
+test('merge never trusts imported kind; always recomputes from text', () => {
+  const dir = tmp();
+  const s = createStore(dir);
+  s.merge({
+    items: [
+      { id: 'evil', type: 'text', text: 'file:///etc/passwd', kind: 'url', hash: 'x', pinned: false, copiedAt: 1, lastUsedAt: 1 },
+      { id: 'good', type: 'text', text: 'https://example.com', kind: null, hash: 'y', pinned: false, copiedAt: 2, lastUsedAt: 2 },
+    ],
+    folders: [],
+  }, path.join(dir, 'nope'));
+  const evil = s.list().find((i) => i.text === 'file:///etc/passwd');
+  const good = s.list().find((i) => i.text === 'https://example.com');
+  assert.strictEqual(evil.kind, null);
+  assert.strictEqual(good.kind, 'url');
+});
+
+test('failed persist during merge rolls back state and keeps evicted files', () => {
+  const dir = tmp();
+  const s = createStore(dir, { getMaxItems: () => 1, now: () => 100 });
+  const keeper = s.addImage(PNG, THUMB); // 1 stream item (lastUsedAt 100), has files on disk
+  fs.chmodSync(dir, 0o500);
+  let threw = false;
+  try {
+    // lastUsedAt 999999 sorts ahead of keeper, so under the old buggy code keeper
+    // (the older item) is the one enforceCap evicts and unlinks before persist fails
+    s.merge({ items: [{ type: 'text', text: 'new', hash: 'h', pinned: false, copiedAt: 999999, lastUsedAt: 999999 }], folders: [] }, path.join(dir, 'nope'));
+  } catch { threw = true; }
+  fs.chmodSync(dir, 0o700);
+  assert.ok(threw);
+  assert.strictEqual(s.list().length, 1);           // rollback: import item not present
+  assert.strictEqual(s.list()[0].id, keeper.id);
+  assert.ok(fs.existsSync(keeper.imagePath));        // evicted-candidate file NOT deleted
+});
+
+test('malformed persisted item with no text does not crash createStore on load', () => {
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, 'history.json'), JSON.stringify([
+    { id: '1', type: 'text' },
+    { id: '2', type: 'text', text: 'hi' },
+  ]));
+  assert.doesNotThrow(() => createStore(dir));
+  const s = createStore(dir);
+  assert.strictEqual(s.get('2').kind, null);
+});
+
 test('merge skips malformed items and persists once at the end', () => {
   const dir = tmp();
   const s = createStore(dir);
