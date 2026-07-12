@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('clipchrono', {
   list: (query, folderId) => ipcRenderer.invoke('history:list', query, folderId),
   select: (id) => ipcRenderer.invoke('item:select', id),
+  openUrl: (id) => ipcRenderer.invoke('item:openUrl', id),
   remove: (ids) => ipcRenderer.invoke('item:remove', ids),
   setPinned: (id, pinned) => ipcRenderer.invoke('item:pin', id, pinned),
   setItemFolder: (itemId, folderId) => ipcRenderer.invoke('item:setFolder', itemId, folderId),

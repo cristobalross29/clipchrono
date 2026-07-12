@@ -1,4 +1,5 @@
-const { app, BrowserWindow, Tray, Menu, nativeImage, globalShortcut, ipcMain, clipboard, screen, systemPreferences } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, globalShortcut, ipcMain, clipboard, screen, systemPreferences, shell } = require('electron');
+const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { createSettings, DEFAULTS } = require('./settings');
@@ -6,6 +7,7 @@ const { createStore } = require('./store');
 const { createWatcher } = require('./watcher');
 const launchagent = require('./launchagent');
 const { sendPasteKeystroke } = require('./paster');
+const { parseFilenamesPlist, buildFilenamesPlist, fileUrlToPath } = require('./filepaste');
 
 app.setName('ClipChrono');
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -31,6 +33,30 @@ const clipboardAdapter = {
   hasConcealed: () => {
     try { return clipboard.has('org.nspasteboard.ConcealedType'); } catch { return false; }
   },
+  lastFileBuf: null,
+  lastFileResult: null,
+  readFilePaths() {
+    try {
+      const buf = clipboard.readBuffer('NSFilenamesPboardType');
+      if (buf && buf.length) {
+        if (this.lastFileBuf && buf.equals(this.lastFileBuf)) {
+          if (this.lastFileResult) return this.lastFileResult;
+        } else {
+          this.lastFileBuf = buf;
+          this.lastFileResult = parseFilenamesPlist(buf);
+          if (this.lastFileResult) return this.lastFileResult;
+        }
+      } else {
+        this.lastFileBuf = null;
+        this.lastFileResult = null;
+      }
+    } catch {}
+    try {
+      const url = clipboard.read('public.file-url');
+      if (url) return [fileUrlToPath(url)];
+    } catch {}
+    return null;
+  },
 };
 
 function makeThumb(pngBuffer) {
@@ -43,9 +69,24 @@ const toView = (i) => ({
   pinned: i.pinned,
   folderId: i.folderId || null,
   copiedAt: i.copiedAt,
+  kind: i.kind || null,
   preview: i.type === 'text' ? i.text.slice(0, 300) : null,
   thumbUrl: i.type === 'image' ? pathToFileURL(i.thumbPath).href : null,
+  fileName: i.type === 'file' ? path.basename(i.paths[0]) : null,
+  fileDir: i.type === 'file' ? path.dirname(i.paths[0]) : null,
+  fileCount: i.type === 'file' ? i.paths.length : 0,
+  missing: i.type === 'file' ? !i.paths.every((p) => fs.existsSync(p)) : false,
 });
+
+const iconCache = new Map();
+function fileIconUrl(p) {
+  const ext = path.extname(p).toLowerCase() || '(none)';
+  if (!iconCache.has(ext)) {
+    // cache the promise, not the value: 500 same-extension rows must not fan out 500 native icon lookups
+    iconCache.set(ext, app.getFileIcon(p, { size: 'small' }).then((img) => img.toDataURL()).catch(() => null));
+  }
+  return iconCache.get(ext);
+}
 
 function createPanel() {
   panel = new BrowserWindow({
@@ -115,19 +156,41 @@ function showWelcome() {
 }
 
 function setupIpc() {
-  ipcMain.handle('history:list', (_e, query, folderId) => store.list(query || '', folderId || null).map(toView));
+  ipcMain.handle('history:list', (_e, query, folderId) =>
+    Promise.all(store.list(query || '', folderId || null).map(async (i) => {
+      const v = toView(i);
+      if (i.type === 'file' && !v.missing) v.iconUrl = await fileIconUrl(i.paths[0]);
+      return v;
+    })));
 
   ipcMain.handle('item:select', (_e, id) => {
     const item = store.get(id);
-    if (!item) return;
+    if (!item) return { ok: false };
+    let filePlist = null;
+    if (item.type === 'file') {
+      if (!item.paths.every((p) => fs.existsSync(p))) return { ok: false, missing: true };
+      try { filePlist = buildFilenamesPlist(item.paths); } catch { return { ok: false, missing: true }; }
+    } else if (item.type !== 'text' && item.type !== 'image') {
+      return { ok: false };
+    }
     panel.hide();
     app.hide();
     if (item.type === 'text') clipboard.writeText(item.text);
-    else clipboard.writeImage(nativeImage.createFromPath(item.imagePath));
+    else if (item.type === 'image') clipboard.writeImage(nativeImage.createFromPath(item.imagePath));
+    else {
+      clipboard.clear();
+      clipboard.writeBuffer('NSFilenamesPboardType', filePlist);
+    }
     store.touch(id);
     if (systemPreferences.isTrustedAccessibilityClient(false)) {
       setTimeout(() => sendPasteKeystroke(), 150);
     }
+    return { ok: true };
+  });
+
+  ipcMain.handle('item:openUrl', (_e, id) => {
+    const item = store.get(id);
+    if (item && item.type === 'text' && item.kind === 'url') shell.openExternal(item.text.trim()).catch(() => {});
   });
 
   ipcMain.handle('item:remove', (_e, ids) => store.remove(ids));
@@ -202,6 +265,7 @@ app.whenReady().then(() => {
     clipboard: clipboardAdapter,
     onText: (t) => { store.addText(t); if (panel && panel.isVisible()) panel.webContents.send('history:changed'); },
     onImage: (png) => { store.addImage(png, makeThumb(png)); if (panel && panel.isVisible()) panel.webContents.send('history:changed'); },
+    onFile: (paths) => { store.addFile(paths); if (panel && panel.isVisible()) panel.webContents.send('history:changed'); },
   });
 
   tray = new Tray(nativeImage.createEmpty());
