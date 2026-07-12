@@ -21,4 +21,6 @@ contextBridge.exposeInMainWorld('clipchrono', {
   finishOnboarding: () => ipcRenderer.invoke('welcome:done'),
   onShow: (cb) => ipcRenderer.on('panel:shown', () => cb()),
   onHistoryChanged: (cb) => ipcRenderer.on('history:changed', () => cb()),
+  exportBackup: () => ipcRenderer.invoke('backup:export'),
+  importBackup: () => ipcRenderer.invoke('backup:import'),
 });

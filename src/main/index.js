@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, nativeImage, globalShortcut, ipcMain, clipboard, screen, systemPreferences, shell } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, globalShortcut, ipcMain, clipboard, screen, systemPreferences, shell, dialog } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
@@ -8,12 +8,14 @@ const { createWatcher } = require('./watcher');
 const launchagent = require('./launchagent');
 const { sendPasteKeystroke } = require('./paster');
 const { parseFilenamesPlist, buildFilenamesPlist, fileUrlToPath } = require('./filepaste');
+const { exportBackup, importBackup } = require('./backup');
 
 app.setName('ClipChrono');
 if (!app.requestSingleInstanceLock()) app.quit();
 
 const dataDir = () => app.getPath('userData');
 let settings, store, watcher, tray, panel, welcome;
+let dialogOpen = false;
 
 const PANEL_W = 360;
 const PANEL_H = 480;
@@ -104,7 +106,7 @@ function createPanel() {
     webPreferences: { preload: path.join(__dirname, '..', 'preload.js') },
   });
   panel.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
-  panel.on('blur', () => panel.hide());
+  panel.on('blur', () => { if (!dialogOpen) panel.hide(); });
   panel.on('hide', () => registerHotkey());
 }
 
@@ -207,6 +209,43 @@ function setupIpc() {
     accessibilityOk: systemPreferences.isTrustedAccessibilityClient(false),
     version: app.getVersion(),
   }));
+
+  const localStamp = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  ipcMain.handle('backup:export', async () => {
+    dialogOpen = true;
+    let res;
+    try { res = await dialog.showSaveDialog(panel, { defaultPath: `ClipChrono-backup-${localStamp()}.zip` }); }
+    finally { dialogOpen = false; panel.focus(); }
+    if (res.canceled || !res.filePath) return { ok: true, canceled: true };
+    try {
+      exportBackup({ dataDir: dataDir(), destZip: res.filePath, tmpRoot: app.getPath('temp') });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: String(err.message || err) };
+    }
+  });
+
+  ipcMain.handle('backup:import', async () => {
+    dialogOpen = true;
+    let res;
+    try {
+      res = await dialog.showOpenDialog(panel, {
+        filters: [{ name: 'ClipChrono backup', extensions: ['zip'] }],
+        properties: ['openFile'],
+      });
+    } finally { dialogOpen = false; panel.focus(); }
+    if (res.canceled || !res.filePaths.length) return { ok: true, canceled: true };
+    try {
+      const r = importBackup({ zipPath: res.filePaths[0], tmpRoot: app.getPath('temp'), store });
+      return { ok: true, added: r.added, kept: r.kept };
+    } catch (err) {
+      return { ok: false, error: String(err.message || err) };
+    }
+  });
 
   ipcMain.handle('settings:set', (_e, patch) => {
     const before = settings.get();
