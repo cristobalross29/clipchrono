@@ -10,6 +10,40 @@ const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'clipchrono-'));
 const PNG = Buffer.from('fakepng-full');
 const THUMB = Buffer.from('fakepng-thumb');
 
+function rawZip(names) {
+  const locals = [];
+  const centrals = [];
+  let offset = 0;
+  for (const name of names) {
+    const n = Buffer.from(name, 'utf8');
+    const local = Buffer.alloc(30 + n.length);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(0x21, 12);
+    local.writeUInt16LE(n.length, 26);
+    n.copy(local, 30);
+    const central = Buffer.alloc(46 + n.length);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(0x21, 14);
+    central.writeUInt16LE(n.length, 28);
+    central.writeUInt32LE(offset, 42);
+    n.copy(central, 46);
+    locals.push(local);
+    centrals.push(central);
+    offset += local.length;
+  }
+  const cd = Buffer.concat(centrals);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(names.length, 8);
+  eocd.writeUInt16LE(names.length, 10);
+  eocd.writeUInt32LE(cd.length, 12);
+  eocd.writeUInt32LE(offset, 16);
+  return Buffer.concat([...locals, cd, eocd]);
+}
+
 test('export then import into an empty store restores everything', () => {
   const srcDir = tmp();
   const src = createStore(srcDir);
@@ -91,4 +125,29 @@ test('export of an empty store still produces an importable backup', () => {
   exportBackup({ dataDir: tmp(), destZip: zip, tmpRoot: tmp() });
   const r = importBackup({ zipPath: zip, tmpRoot: tmp(), store: createStore(tmp()) });
   assert.strictEqual(r.added, 0);
+});
+
+test('zip entries with traversal or absolute names are rejected', () => {
+  const dst = createStore(tmp());
+  dst.addText('precious');
+  for (const names of [['../evil.txt'], ['images/../../evil.png'], ['/abs.txt']]) {
+    const zip = path.join(tmp(), 'hostile.zip');
+    fs.writeFileSync(zip, rawZip(names));
+    assert.throws(() => importBackup({ zipPath: zip, tmpRoot: tmp(), store: dst }), /NOT_A_BACKUP/);
+  }
+  assert.strictEqual(dst.list().length, 1);
+});
+
+test('zip with more than 5000 entries is rejected', () => {
+  const zip = path.join(tmp(), 'many.zip');
+  fs.writeFileSync(zip, rawZip(Array.from({ length: 5001 }, (_, i) => `f${i}.txt`)));
+  assert.throws(() => importBackup({ zipPath: zip, tmpRoot: tmp(), store: createStore(tmp()) }), /NOT_A_BACKUP/);
+});
+
+test('oversized zip file is rejected before any reads', () => {
+  const zip = path.join(tmp(), 'huge.zip');
+  const fd = fs.openSync(zip, 'w');
+  fs.ftruncateSync(fd, 1024 * 1024 * 1024 + 1);
+  fs.closeSync(fd);
+  assert.throws(() => importBackup({ zipPath: zip, tmpRoot: tmp(), store: createStore(tmp()) }), /NOT_A_BACKUP/);
 });

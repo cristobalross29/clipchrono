@@ -21,9 +21,9 @@ function exportBackup({ dataDir, destZip, tmpRoot, exportedAt = Date.now() }) {
     fs.writeFileSync(path.join(staging, 'history.json'), JSON.stringify(items));
     try { fs.copyFileSync(path.join(dataDir, 'folders.json'), path.join(staging, 'folders.json')); } catch {}
     const stagingImages = path.join(staging, 'images');
+    if (items.some((i) => i && i.type === 'image')) fs.mkdirSync(stagingImages, { recursive: true });
     for (const i of items) {
       if (!i || i.type !== 'image') continue;
-      fs.mkdirSync(stagingImages, { recursive: true });
       for (const p of [i.imagePath, i.thumbPath]) {
         try { fs.copyFileSync(p, path.join(stagingImages, path.basename(p))); } catch {}
       }
