@@ -44,6 +44,61 @@ function rawZip(names) {
   return Buffer.concat([...locals, cd, eocd]);
 }
 
+function rawZipBomb(entries) {
+  const locals = [];
+  const centrals = [];
+  let offset = 0;
+  for (const { name, uncompressedSize } of entries) {
+    const n = Buffer.from(name, 'utf8');
+    const local = Buffer.alloc(30 + n.length);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(0x21, 12);
+    local.writeUInt32LE(uncompressedSize >>> 0, 22);
+    local.writeUInt16LE(n.length, 26);
+    n.copy(local, 30);
+    const central = Buffer.alloc(46 + n.length);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(0x21, 14);
+    central.writeUInt32LE(uncompressedSize >>> 0, 24);
+    central.writeUInt16LE(n.length, 28);
+    central.writeUInt32LE(offset, 42);
+    n.copy(central, 46);
+    locals.push(local);
+    centrals.push(central);
+    offset += local.length;
+  }
+  const cd = Buffer.concat(centrals);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(entries.length, 8);
+  eocd.writeUInt16LE(entries.length, 10);
+  eocd.writeUInt32LE(cd.length, 12);
+  eocd.writeUInt32LE(offset, 16);
+  return Buffer.concat([...locals, cd, eocd]);
+}
+
+test('zip declaring a decompression-bomb uncompressed size is rejected before extraction', () => {
+  const zip = path.join(tmp(), 'bomb.zip');
+  // declared size only, no actual data written — proves the preflight reads header
+  // metadata rather than extracting, so a tiny file can't claim to expand past the cap
+  fs.writeFileSync(zip, rawZipBomb([{ name: 'meta.json', uncompressedSize: 3 * 1024 * 1024 * 1024 }]));
+  const dst = createStore(tmp());
+  dst.addText('precious');
+  assert.throws(() => importBackup({ zipPath: zip, tmpRoot: tmp(), store: dst }), /NOT_A_BACKUP/);
+  assert.strictEqual(dst.list().length, 1);
+});
+
+test('zip with meta.json but no history.json is rejected', () => {
+  const stage = tmp();
+  fs.writeFileSync(path.join(stage, 'meta.json'), JSON.stringify({ app: 'clipchrono', formatVersion: 1 }));
+  const zip = path.join(tmp(), 'nohistory.zip');
+  require('node:child_process').execFileSync('/usr/bin/ditto', ['-c', '-k', stage, zip]);
+  assert.throws(() => importBackup({ zipPath: zip, tmpRoot: tmp(), store: createStore(tmp()) }), /NOT_A_BACKUP/);
+});
+
 test('export then import into an empty store restores everything', () => {
   const srcDir = tmp();
   const src = createStore(srcDir);

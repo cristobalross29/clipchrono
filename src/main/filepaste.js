@@ -7,7 +7,7 @@ function parseFilenamesPlist(buf) {
   if (!Buffer.isBuffer(buf) || !buf.length || buf.length > MAX_PLIST_BYTES) return null;
   let json;
   try {
-    json = execFileSync(PLUTIL, ['-convert', 'json', '-o', '-', '-'], { input: buf, stdio: 'pipe' }).toString('utf8');
+    json = execFileSync(PLUTIL, ['-convert', 'json', '-o', '-', '-'], { input: buf, stdio: 'pipe', maxBuffer: 64 * 1024 * 1024 }).toString('utf8');
   } catch {
     return null;
   }
@@ -22,7 +22,7 @@ function parseFilenamesPlist(buf) {
 }
 
 function buildFilenamesPlist(paths) {
-  return execFileSync(PLUTIL, ['-convert', 'xml1', '-o', '-', '-'], { input: JSON.stringify(paths), stdio: 'pipe' });
+  return execFileSync(PLUTIL, ['-convert', 'xml1', '-o', '-', '-'], { input: JSON.stringify(paths), stdio: 'pipe', maxBuffer: 64 * 1024 * 1024 });
 }
 
 function fileUrlToPath(url) {

@@ -91,7 +91,7 @@ function fileIconUrl(p) {
   const ext = path.extname(p).toLowerCase() || '(none)';
   if (!iconCache.has(ext)) {
     // cache the promise, not the value: 500 same-extension rows must not fan out 500 native icon lookups
-    iconCache.set(ext, app.getFileIcon(p, { size: 'small' }).then((img) => img.toDataURL()).catch(() => null));
+    iconCache.set(ext, app.getFileIcon(p, { size: 'small' }).then((img) => img.toDataURL()).catch(() => { iconCache.delete(ext); return null; }));
   }
   return iconCache.get(ext);
 }
@@ -186,8 +186,12 @@ function setupIpc() {
     if (item.type === 'text') clipboard.writeText(item.text);
     else if (item.type === 'image') clipboard.writeImage(nativeImage.createFromPath(item.imagePath));
     else {
-      clipboard.clear();
-      clipboard.writeBuffer('NSFilenamesPboardType', filePlist);
+      try {
+        clipboard.clear();
+        clipboard.writeBuffer('NSFilenamesPboardType', filePlist);
+      } catch {
+        return { ok: false };
+      }
     }
     store.touch(id);
     if (systemPreferences.isTrustedAccessibilityClient(false)) {

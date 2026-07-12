@@ -42,6 +42,11 @@ test('garbage, empty, non-array, and relative-path plists return null', () => {
   assert.strictEqual(parseFilenamesPlist(rel), null);
 });
 
+test('round-trips a large multi-file plist that exceeds the default 1MB maxBuffer', () => {
+  const paths = Array.from({ length: 20000 }, (_, i) => `/Users/x/some-long-folder-name/subdir-${i}/file-number-${i}.txt`);
+  assert.deepStrictEqual(parseFilenamesPlist(buildFilenamesPlist(paths)), paths);
+});
+
 test('fileUrlToPath decodes percent-encoding', () => {
   assert.strictEqual(fileUrlToPath('file:///Users/x/My%20File.pdf'), '/Users/x/My File.pdf');
   assert.strictEqual(fileUrlToPath('file:///Users/x/caf%C3%A9.md'), '/Users/x/café.md');

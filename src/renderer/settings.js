@@ -73,6 +73,7 @@ async function loadSettingsView() {
   document.querySelector('#set-login').checked = s.launchAtLogin;
   document.querySelector('#set-access').textContent = s.accessibilityOk ? 'Enabled ✓' : 'Grant Accessibility in System Settings';
   document.querySelector('#set-version').textContent = 'v' + s.version;
+  if (backupHint) backupHint.textContent = '';
 }
 window.loadSettingsView = loadSettingsView;
 
@@ -91,20 +92,28 @@ const backupHint = document.querySelector('#set-backup-hint');
 
 document.querySelector('#set-export').onclick = async () => {
   backupHint.textContent = 'Exporting…';
-  const r = await clipchrono.exportBackup();
-  backupHint.textContent = r.canceled ? '' : r.ok ? 'Backup saved ✓' : 'Export failed: ' + r.error;
+  try {
+    const r = await clipchrono.exportBackup();
+    backupHint.textContent = r.canceled ? '' : r.ok ? 'Backup saved ✓' : 'Export failed: ' + r.error;
+  } catch {
+    backupHint.textContent = 'Export failed';
+  }
 };
 
 document.querySelector('#set-import').onclick = async () => {
   backupHint.textContent = 'Importing…';
-  const r = await clipchrono.importBackup();
-  if (r.canceled) { backupHint.textContent = ''; return; }
-  if (!r.ok) {
-    backupHint.textContent = r.error === 'NOT_A_BACKUP'
-      ? "This doesn't look like a ClipChrono backup."
-      : 'Import failed: ' + r.error;
-    return;
+  try {
+    const r = await clipchrono.importBackup();
+    if (r.canceled) { backupHint.textContent = ''; return; }
+    if (!r.ok) {
+      backupHint.textContent = r.error === 'NOT_A_BACKUP'
+        ? "This doesn't look like a ClipChrono backup."
+        : 'Import failed: ' + r.error;
+      return;
+    }
+    backupHint.textContent = `Imported ${r.kept} new item${r.kept === 1 ? '' : 's'} ✓`;
+    if (window.refreshAll) window.refreshAll();
+  } catch {
+    backupHint.textContent = 'Import failed';
   }
-  backupHint.textContent = `Imported ${r.kept} new item${r.kept === 1 ? '' : 's'} ✓`;
-  if (window.refreshAll) window.refreshAll();
 };

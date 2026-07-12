@@ -7,6 +7,7 @@ const ZIPINFO = '/usr/bin/zipinfo';
 const MAX_ZIP_BYTES = 1024 * 1024 * 1024;
 const MAX_JSON_BYTES = 50 * 1024 * 1024;
 const MAX_ENTRIES = 5000;
+const MAX_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024;
 
 function exportBackup({ dataDir, destZip, tmpRoot, exportedAt = Date.now() }) {
   const staging = fs.mkdtempSync(path.join(tmpRoot, 'clipchrono-export-'));
@@ -14,10 +15,12 @@ function exportBackup({ dataDir, destZip, tmpRoot, exportedAt = Date.now() }) {
   const destTmp = path.join(path.dirname(destZip), '.' + path.basename(destZip) + '.tmp');
   try {
     let items = [];
-    try {
-      const parsed = JSON.parse(fs.readFileSync(path.join(dataDir, 'history.json'), 'utf8'));
-      if (Array.isArray(parsed)) items = parsed;
-    } catch {}
+    const historyPath = path.join(dataDir, 'history.json');
+    if (fs.existsSync(historyPath)) {
+      const parsed = JSON.parse(fs.readFileSync(historyPath, 'utf8'));
+      if (!Array.isArray(parsed)) throw new Error('history.json is corrupt: not an array');
+      items = parsed;
+    }
     fs.writeFileSync(path.join(staging, 'history.json'), JSON.stringify(items));
     try { fs.copyFileSync(path.join(dataDir, 'folders.json'), path.join(staging, 'folders.json')); } catch {}
     const stagingImages = path.join(staging, 'images');
@@ -54,6 +57,20 @@ function importBackup({ zipPath, tmpRoot, store }) {
   if (names.length > MAX_ENTRIES || names.some((n) => n.startsWith('/') || n.split('/').includes('..'))) {
     throw new Error('NOT_A_BACKUP');
   }
+  let totalUncompressed;
+  try {
+    const listing = execFileSync(ZIPINFO, [zipPath], { stdio: 'pipe' }).toString('utf8');
+    const lines = listing.trim().split('\n');
+    const summary = lines[lines.length - 1];
+    const m = summary.match(/^\d+\s+files?,\s+(\d+)\s+bytes uncompressed/);
+    if (!m) throw new Error('unparseable zipinfo summary');
+    totalUncompressed = Number(m[1]);
+  } catch {
+    throw new Error('NOT_A_BACKUP');
+  }
+  if (!Number.isFinite(totalUncompressed) || totalUncompressed > MAX_UNCOMPRESSED_BYTES) {
+    throw new Error('NOT_A_BACKUP');
+  }
   const staging = fs.mkdtempSync(path.join(tmpRoot, 'clipchrono-import-'));
   try {
     try {
@@ -75,9 +92,11 @@ function importBackup({ zipPath, tmpRoot, store }) {
     if (!meta || typeof meta !== 'object' || Array.isArray(meta) || meta.app !== 'clipchrono' || meta.formatVersion !== 1) {
       throw new Error('NOT_A_BACKUP');
     }
+    const history = readJson('history.json', true);
+    if (!Array.isArray(history)) throw new Error('NOT_A_BACKUP');
     const arr = (v) => (Array.isArray(v) ? v : []);
     return store.merge(
-      { items: arr(readJson('history.json')), folders: arr(readJson('folders.json')) },
+      { items: history, folders: arr(readJson('folders.json')) },
       path.join(staging, 'images'),
     );
   } finally {
