@@ -136,10 +136,21 @@ function createStore(dir, { getMaxItems = () => 500, now = Date.now } = {}) {
     return insert({ id, type: 'image', imagePath, thumbPath, hash, pinned: false, copiedAt: t, lastUsedAt: t });
   }
 
+  function addFile(paths) {
+    if (!Array.isArray(paths) || !paths.length) return null;
+    const hash = sha1('file:' + JSON.stringify([...paths].sort()));
+    const existing = items.find((i) => i.hash === hash);
+    if (existing) return touch(existing.id);
+    const t = now();
+    return insert({ id: crypto.randomUUID(), type: 'file', paths, hash, pinned: false, copiedAt: t, lastUsedAt: t });
+  }
+
   function list(query = '', folderId = null) {
     const q = query.trim().toLowerCase();
     let result = items.filter((i) => (folderId == null ? !i.folderId : i.folderId === folderId));
-    if (q) result = result.filter((i) => i.type === 'text' && i.text.toLowerCase().includes(q));
+    if (q) result = result.filter((i) =>
+      (i.type === 'text' && i.text.toLowerCase().includes(q)) ||
+      (i.type === 'file' && i.paths.some((p) => p.toLowerCase().includes(q))));
     return [...result.filter((i) => i.pinned), ...result.filter((i) => !i.pinned)];
   }
 
@@ -223,7 +234,7 @@ function createStore(dir, { getMaxItems = () => 500, now = Date.now } = {}) {
     persist();
   }
 
-  return { addText, addImage, list, get, touch, remove, clearAll, setPinned, expire, listFolders, createFolder, renameFolder, deleteFolder, setItemFolder };
+  return { addText, addImage, addFile, list, get, touch, remove, clearAll, setPinned, expire, listFolders, createFolder, renameFolder, deleteFolder, setItemFolder };
 }
 
 module.exports = { createStore };

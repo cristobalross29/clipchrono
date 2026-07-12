@@ -169,3 +169,42 @@ test('legacy items without kind are classified once on load and persisted', () =
   assert.strictEqual(onDisk.find((i) => i.id === '1').kind, 'url');
   assert.ok('kind' in onDisk.find((i) => i.id === '2'));
 });
+
+test('addFile stores paths, dedupes by path set, and re-copy touches', () => {
+  let t = 1000;
+  const s = createStore(tmp(), { now: () => t });
+  const a = s.addFile(['/Users/x/report.pdf']);
+  assert.strictEqual(a.type, 'file');
+  t = 2000;
+  s.addText('between');
+  t = 3000;
+  const again = s.addFile(['/Users/x/report.pdf']);
+  assert.strictEqual(again.id, a.id);
+  assert.strictEqual(s.list()[0].id, a.id);
+  assert.strictEqual(s.addFile([]), null);
+});
+
+test('different path sets are different items; order and newlines do not confuse the hash', () => {
+  const s = createStore(tmp());
+  s.addFile(['/a.txt']);
+  s.addFile(['/a.txt', '/b.txt']);
+  assert.strictEqual(s.list().length, 2);
+  s.addFile(['/b.txt', '/a.txt']);
+  assert.strictEqual(s.list().length, 2);
+  s.addFile(['/a.txt\n/b.txt']);
+  assert.strictEqual(s.list().length, 3);
+});
+
+test('search matches file items by path, case-insensitively', () => {
+  const s = createStore(tmp());
+  s.addFile(['/Users/x/Report-Final.PDF']);
+  s.addText('unrelated');
+  assert.strictEqual(s.list('report-final').length, 1);
+  assert.strictEqual(s.list('report-final')[0].type, 'file');
+});
+
+test('file items persist across reload', () => {
+  const dir = tmp();
+  createStore(dir).addFile(['/a.txt']);
+  assert.deepStrictEqual(createStore(dir).list()[0].paths, ['/a.txt']);
+});
