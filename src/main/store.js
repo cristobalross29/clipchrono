@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const sha1 = require('./hash');
+const { classifyText } = require('./classify');
 
 const normalizeForHash = (text) =>
   text.normalize('NFC').replace(/[\u00A0\u202F\u2007]/g, ' ').trim();
@@ -44,6 +45,17 @@ function createStore(dir, { getMaxItems = () => 500, now = Date.now } = {}) {
       }
     }
     if (orphaned) persist();
+  }
+
+  {
+    let classified = false;
+    for (const item of items) {
+      if (item.type === 'text' && !('kind' in item)) {
+        item.kind = classifyText(item.text);
+        classified = true;
+      }
+    }
+    if (classified) persist();
   }
 
   function persistFolders() {
@@ -107,7 +119,7 @@ function createStore(dir, { getMaxItems = () => 500, now = Date.now } = {}) {
     const existing = items.find((i) => i.hash === hash);
     if (existing) return touch(existing.id);
     const t = now();
-    return insert({ id: crypto.randomUUID(), type: 'text', text, hash, pinned: false, copiedAt: t, lastUsedAt: t });
+    return insert({ id: crypto.randomUUID(), type: 'text', text, kind: classifyText(text), hash, pinned: false, copiedAt: t, lastUsedAt: t });
   }
 
   function addImage(pngBuffer, thumbBuffer) {

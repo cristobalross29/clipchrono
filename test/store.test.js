@@ -147,3 +147,25 @@ test('NFD and NFC forms of the same text dedupe to one entry', () => {
   s.addText('aplicación');
   assert.strictEqual(s.list().length, 1);
 });
+
+test('addText stores kind for urls, code, and plain text', () => {
+  const s = createStore(tmp());
+  assert.strictEqual(s.addText('https://example.com').kind, 'url');
+  assert.strictEqual(s.addText('const a = 1;\nconst b = 2;').kind, 'code');
+  assert.strictEqual(s.addText('plain old text').kind, null);
+});
+
+test('legacy items without kind are classified once on load and persisted', () => {
+  const dir = tmp();
+  const legacy = [
+    { id: '1', type: 'text', text: 'https://example.com', hash: 'h1', pinned: false, copiedAt: 1, lastUsedAt: 1 },
+    { id: '2', type: 'text', text: 'plain', hash: 'h2', pinned: false, copiedAt: 2, lastUsedAt: 2 },
+  ];
+  fs.writeFileSync(path.join(dir, 'history.json'), JSON.stringify(legacy));
+  const s = createStore(dir);
+  assert.strictEqual(s.get('1').kind, 'url');
+  assert.strictEqual(s.get('2').kind, null);
+  const onDisk = JSON.parse(fs.readFileSync(path.join(dir, 'history.json'), 'utf8'));
+  assert.strictEqual(onDisk.find((i) => i.id === '1').kind, 'url');
+  assert.ok('kind' in onDisk.find((i) => i.id === '2'));
+});
