@@ -234,7 +234,98 @@ function createStore(dir, { getMaxItems = () => 500, now = Date.now } = {}) {
     persist();
   }
 
-  return { addText, addImage, addFile, list, get, touch, remove, clearAll, setPinned, expire, listFolders, createFolder, renameFolder, deleteFolder, setItemFolder };
+  const validImport = (i) =>
+    i && typeof i === 'object' &&
+    ((i.type === 'text' && typeof i.text === 'string' && i.text.trim() && i.text.length <= 10_000_000) ||
+     (i.type === 'image' && typeof i.imagePath === 'string' && typeof i.thumbPath === 'string') ||
+     (i.type === 'file' && Array.isArray(i.paths) && i.paths.length > 0 && i.paths.length <= 100 &&
+      i.paths.every((p) => typeof p === 'string' && p.startsWith('/'))));
+
+  const isRegularFileWithin = (p, dir) => {
+    try {
+      if (!fs.lstatSync(p).isFile()) return false;
+      return fs.realpathSync(p).startsWith(fs.realpathSync(dir) + path.sep);
+    } catch {
+      return false;
+    }
+  };
+
+  function merge(data, srcImagesDir) {
+    const importedFolders = Array.isArray(data.folders) ? data.folders : [];
+    const importedItems = Array.isArray(data.items) ? data.items.slice(0, 10_000) : [];
+
+    const folderIdMap = new Map();
+    const newFolders = [];
+    for (const f of importedFolders) {
+      if (!f || typeof f.id !== 'string' || typeof f.name !== 'string' || !f.name.trim() || folderIdMap.has(f.id)) continue;
+      const name = f.name.trim();
+      const existing = findFolderByName(name) || newFolders.find((x) => x.name.toLowerCase() === name.toLowerCase());
+      if (existing) { folderIdMap.set(f.id, existing.id); continue; }
+      const nf = { id: crypto.randomUUID(), name, createdAt: Number.isFinite(f.createdAt) ? f.createdAt : now() };
+      newFolders.push(nf);
+      folderIdMap.set(f.id, nf.id);
+    }
+
+    const hashes = new Set(items.map((i) => i.hash));
+    const newItems = [];
+    const copiedFiles = [];
+    try {
+      for (const raw of importedItems) {
+        if (!validImport(raw)) continue;
+        const copiedAt = Number.isFinite(raw.copiedAt) ? raw.copiedAt : now();
+        const item = {
+          id: crypto.randomUUID(),
+          type: raw.type,
+          pinned: !!raw.pinned,
+          copiedAt,
+          lastUsedAt: Number.isFinite(raw.lastUsedAt) ? raw.lastUsedAt : copiedAt,
+        };
+        if (raw.folderId && folderIdMap.has(raw.folderId)) item.folderId = folderIdMap.get(raw.folderId);
+        if (raw.type === 'text') {
+          item.text = raw.text;
+          item.hash = sha1('text:' + normalizeForHash(raw.text));
+          item.kind = raw.kind === 'url' || raw.kind === 'code' ? raw.kind : classifyText(raw.text);
+        } else if (raw.type === 'file') {
+          item.paths = raw.paths;
+          item.hash = sha1('file:' + JSON.stringify([...raw.paths].sort()));
+        } else {
+          const srcImg = path.join(srcImagesDir, path.basename(raw.imagePath));
+          const srcThumb = path.join(srcImagesDir, path.basename(raw.thumbPath));
+          if (!isRegularFileWithin(srcImg, srcImagesDir) || !isRegularFileWithin(srcThumb, srcImagesDir)) continue;
+          item.hash = sha1(fs.readFileSync(srcImg));
+          if (hashes.has(item.hash)) continue;
+          fs.mkdirSync(imagesDir, { recursive: true });
+          item.imagePath = path.join(imagesDir, item.id + '.png');
+          item.thumbPath = path.join(imagesDir, item.id + '.thumb.png');
+          fs.copyFileSync(srcImg, item.imagePath);
+          copiedFiles.push(item.imagePath);
+          fs.copyFileSync(srcThumb, item.thumbPath);
+          copiedFiles.push(item.thumbPath);
+        }
+        if (hashes.has(item.hash)) continue;
+        hashes.add(item.hash);
+        newItems.push(item);
+      }
+    } catch (err) {
+      for (const p of copiedFiles) {
+        try { fs.unlinkSync(p); } catch {}
+      }
+      throw err;
+    }
+
+    folders.push(...newFolders);
+    items.push(...newItems);
+    items.sort((a, b) => b.lastUsedAt - a.lastUsedAt);
+    enforceCap();
+    // folders first: orphan empty folders are harmless, items pointing at
+    // unpersisted folders would be stripped by the next launch's reconcile
+    persistFolders();
+    persist();
+    const retained = new Set(items.map((i) => i.id));
+    return { added: newItems.length, kept: newItems.filter((i) => retained.has(i.id)).length };
+  }
+
+  return { addText, addImage, addFile, list, get, touch, remove, clearAll, setPinned, expire, listFolders, createFolder, renameFolder, deleteFolder, setItemFolder, merge };
 }
 
 module.exports = { createStore };
