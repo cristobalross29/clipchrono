@@ -7,10 +7,10 @@ Each release is tagged (`vX.Y.Z`) — `git checkout vX.Y.Z` reproduces exactly w
 ## Unreleased
 
 ### Added
-- **Link-aware clips** — URLs are detected and displayed with the site title/favicon and an open-in-browser button.
-- **Code formatting** — code clips preserve syntax highlighting and formatting.
+- **Link-aware clips** — URLs are detected offline and shown with their domain, plus an open-in-browser button.
+- **Code formatting** — code clips render in monospace with indentation and line breaks preserved.
 - **Finder file capture & paste** — files copied in Finder appear as references in ClipChrono and can be pasted back to Finder or other apps.
-- **Backup export & import** — Settings → Export saves all clips, folders, pins, and settings to a single file; Import merges the backup on any Mac without overwriting existing data.
+- **Backup export & import** — Settings → Export saves clips, folders, and pins to a single file; Import merges the backup on any Mac without overwriting existing data.
 
 ## [0.1.2] — 2026-07-11
 
