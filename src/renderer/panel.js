@@ -35,6 +35,19 @@ function timeAgo(ts) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
+function urlDomain(u) {
+  try { return new URL(u.trim()).host; } catch { return u.trim().slice(0, 40); }
+}
+
+function flashMissing(row) {
+  const meta = row.querySelector('.meta');
+  if (!meta || meta.dataset.flashing) return;
+  meta.dataset.flashing = '1';
+  const orig = meta.textContent;
+  meta.textContent = 'Original file was moved or deleted';
+  setTimeout(() => { meta.textContent = orig; delete meta.dataset.flashing; }, 1400);
+}
+
 let refreshSeq = 0;
 async function refresh() {
   const seq = ++refreshSeq;
@@ -63,6 +76,10 @@ function render() {
     row.className = 'item';
     if (idx === activeIndex) row.classList.add('active');
     if (selection.has(item.id)) row.classList.add('selected');
+    if (item.missing) {
+      row.classList.add('missing');
+      row.title = 'Original file was moved or deleted';
+    }
 
     if (item.pinned) {
       const pin = document.createElement('span');
@@ -73,20 +90,45 @@ function render() {
 
     const body = document.createElement('div');
     body.className = 'body';
-    if (item.type === 'text') {
+    if (item.type === 'text' && item.kind === 'url') {
+      const dom = document.createElement('div');
+      dom.className = 'link-domain';
+      dom.textContent = '🔗 ' + urlDomain(item.preview);
+      const u = document.createElement('div');
+      u.className = 'link-url';
+      u.textContent = item.preview;
+      body.append(dom, u);
+    } else if (item.type === 'text') {
       const p = document.createElement('div');
-      p.className = 'text-preview';
+      p.className = item.kind === 'code' ? 'text-preview code-preview' : 'text-preview';
       p.textContent = item.preview;
       body.appendChild(p);
-    } else {
+    } else if (item.type === 'image') {
       const img = document.createElement('img');
       img.className = 'thumb';
       img.src = item.thumbUrl;
       body.appendChild(img);
+    } else {
+      const line = document.createElement('div');
+      line.className = 'file-line';
+      const icon = item.iconUrl ? document.createElement('img') : document.createElement('span');
+      if (item.iconUrl) { icon.className = 'file-icon'; icon.src = item.iconUrl; }
+      else icon.textContent = '📄';
+      const name = document.createElement('span');
+      name.className = 'file-name';
+      name.textContent = item.fileName + (item.fileCount > 1 ? ` + ${item.fileCount - 1} more` : '');
+      line.append(icon, name);
+      const dir = document.createElement('div');
+      dir.className = 'file-dir';
+      dir.textContent = item.fileDir;
+      body.append(line, dir);
     }
     const meta = document.createElement('div');
     meta.className = 'meta';
-    meta.textContent = (item.type === 'image' ? 'Image · ' : '') + timeAgo(item.copiedAt);
+    meta.textContent =
+      (item.type === 'image' ? 'Image · '
+        : item.type === 'file' ? (item.fileCount > 1 ? `${item.fileCount} files · ` : 'File · ')
+        : '') + timeAgo(item.copiedAt);
     body.appendChild(meta);
     row.appendChild(body);
 
@@ -118,6 +160,14 @@ function render() {
       e.stopPropagation();
       openFolderPopover(item, folderBtn);
     };
+    if (item.kind === 'url') {
+      const openBtn = document.createElement('button');
+      openBtn.className = 'icon-btn';
+      openBtn.title = 'Open in browser';
+      openBtn.textContent = '🌐';
+      openBtn.onclick = (e) => { e.stopPropagation(); clipchrono.openUrl(item.id); };
+      actions.append(openBtn);
+    }
     actions.append(folderBtn, pinBtn, delBtn);
     row.appendChild(actions);
 
@@ -127,7 +177,7 @@ function render() {
         updateSelectionUI();
         render();
       } else {
-        clipchrono.select(item.id);
+        clipchrono.select(item.id).then((r) => { if (r && !r.ok && r.missing) flashMissing(row); });
         selection.clear();
         updateSelectionUI();
       }
@@ -311,7 +361,8 @@ document.addEventListener('keydown', (e) => {
     render();
     itemsEl.children[activeIndex]?.scrollIntoView({ block: 'nearest' });
   } else if (e.key === 'Enter' && items[activeIndex]) {
-    clipchrono.select(items[activeIndex].id);
+    const row = itemsEl.children[activeIndex];
+    clipchrono.select(items[activeIndex].id).then((r) => { if (r && !r.ok && r.missing && row) flashMissing(row); });
   } else if ((e.key === 'Backspace' || e.key === 'Delete') && document.activeElement !== searchEl) {
     const ids = selection.size ? [...selection] : items[activeIndex] ? [items[activeIndex].id] : [];
     if (ids.length) {
@@ -339,6 +390,8 @@ clipchrono.onShow(() => {
   refresh();
 });
 clipchrono.onHistoryChanged(() => refresh());
+
+window.refreshAll = () => { refreshFolderSelect(); refresh(); };
 
 refresh();
 refreshFolderSelect();
