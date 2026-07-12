@@ -379,3 +379,18 @@ test('merge skips malformed items and persists once at the end', () => {
   assert.strictEqual(r.added, 1);
   assert.deepStrictEqual(createStore(dir).list()[0].paths, ['/a.txt']);
 });
+
+test('structurally malformed persisted items are quarantined at load, not crashed on', () => {
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, 'history.json'), JSON.stringify([
+    { id: 'good', type: 'text', text: 'keep me', kind: null, pinned: false, copiedAt: 2, lastUsedAt: 2 },
+    { id: 'notext', type: 'text', pinned: false, copiedAt: 1, lastUsedAt: 1 },
+    { id: 'badfile', type: 'file', paths: null, pinned: false, copiedAt: 1, lastUsedAt: 1 },
+    { type: 'text', text: 'no id here', pinned: false, copiedAt: 1, lastUsedAt: 1 },
+  ]));
+  const s = createStore(dir);
+  const ids = s.list().map((i) => i.id);
+  assert.deepStrictEqual(ids, ['good']);
+  // and the quarantine persisted, so reload is clean too
+  assert.deepStrictEqual(createStore(dir).list().map((i) => i.id), ['good']);
+});

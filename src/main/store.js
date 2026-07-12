@@ -7,6 +7,12 @@ const { classifyText } = require('./classify');
 const normalizeForHash = (text) =>
   text.normalize('NFC').replace(/[\u00A0\u202F\u2007]/g, ' ').trim();
 
+const isValidItem = (i) =>
+  i && typeof i === 'object' && typeof i.id === 'string' &&
+  ((i.type === 'text' && typeof i.text === 'string') ||
+   (i.type === 'image' && typeof i.imagePath === 'string' && typeof i.thumbPath === 'string') ||
+   (i.type === 'file' && Array.isArray(i.paths) && i.paths.length > 0 && i.paths.every((p) => typeof p === 'string')));
+
 function createStore(dir, { getMaxItems = () => 500, now = Date.now } = {}) {
   const file = path.join(dir, 'history.json');
   const imagesDir = path.join(dir, 'images');
@@ -19,6 +25,14 @@ function createStore(dir, { getMaxItems = () => 500, now = Date.now } = {}) {
       try { fs.renameSync(file, file + '.bak'); } catch {}
     }
     items = [];
+  }
+
+  {
+    const valid = items.filter(isValidItem);
+    if (valid.length !== items.length) {
+      items = valid;
+      persist();
+    }
   }
 
   const foldersFile = path.join(dir, 'folders.json');
