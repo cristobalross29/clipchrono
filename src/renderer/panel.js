@@ -39,8 +39,9 @@ function urlDomain(u) {
   try { return new URL(u.trim()).host; } catch { return u.trim().slice(0, 40); }
 }
 
-function flashMissing(row) {
-  const meta = row.querySelector('.meta');
+function flashMissing(id) {
+  const row = [...itemsEl.children].find((r) => r.dataset && r.dataset.id === id);
+  const meta = row && row.querySelector('.meta');
   if (!meta || meta.dataset.flashing) return;
   meta.dataset.flashing = '1';
   const orig = meta.textContent;
@@ -74,6 +75,7 @@ function render() {
   items.forEach((item, idx) => {
     const row = document.createElement('div');
     row.className = 'item';
+    row.dataset.id = item.id;
     if (idx === activeIndex) row.classList.add('active');
     if (selection.has(item.id)) row.classList.add('selected');
     if (item.missing) {
@@ -177,7 +179,7 @@ function render() {
         updateSelectionUI();
         render();
       } else {
-        clipchrono.select(item.id).then((r) => { if (r && !r.ok && r.missing) flashMissing(row); });
+        clipchrono.select(item.id).then((r) => { if (r && !r.ok && r.missing) flashMissing(item.id); });
         selection.clear();
         updateSelectionUI();
       }
@@ -361,8 +363,8 @@ document.addEventListener('keydown', (e) => {
     render();
     itemsEl.children[activeIndex]?.scrollIntoView({ block: 'nearest' });
   } else if (e.key === 'Enter' && items[activeIndex]) {
-    const row = itemsEl.children[activeIndex];
-    clipchrono.select(items[activeIndex].id).then((r) => { if (r && !r.ok && r.missing && row) flashMissing(row); });
+    const id = items[activeIndex].id;
+    clipchrono.select(id).then((r) => { if (r && !r.ok && r.missing) flashMissing(id); });
   } else if ((e.key === 'Backspace' || e.key === 'Delete') && document.activeElement !== searchEl) {
     const ids = selection.size ? [...selection] : items[activeIndex] ? [items[activeIndex].id] : [];
     if (ids.length) {
