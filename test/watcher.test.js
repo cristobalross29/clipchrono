@@ -4,9 +4,10 @@ const { createWatcher } = require('../src/main/watcher');
 
 function fakeClipboard() {
   return {
-    text: '', png: null, concealed: false,
+    text: '', png: null, files: null, concealed: false,
     readText() { return this.text; },
     readImagePng() { return this.png; },
+    readFilePaths() { return this.files; },
     hasConcealed() { return this.concealed; },
   };
 }
@@ -15,8 +16,9 @@ function setup() {
   const clip = fakeClipboard();
   const texts = [];
   const images = [];
-  const w = createWatcher({ clipboard: clip, onText: (t) => texts.push(t), onImage: (b) => images.push(b) });
-  return { clip, texts, images, w };
+  const files = [];
+  const w = createWatcher({ clipboard: clip, onText: (t) => texts.push(t), onImage: (b) => images.push(b), onFile: (p) => files.push(p) });
+  return { clip, texts, images, files, w };
 }
 
 test('captures text once per change', () => {
@@ -94,4 +96,42 @@ test('start() twice does not double-poll', (t) => {
   t.mock.timers.tick(500);
   assert.deepStrictEqual(texts, ['one', 'two']);
   w.stop();
+});
+
+test('file copy takes precedence over image and text, fires once', () => {
+  const { clip, texts, images, files, w } = setup();
+  clip.files = ['/Users/x/a.pdf'];
+  clip.png = Buffer.from('icon');
+  clip.text = 'a.pdf';
+  w.check();
+  w.check();
+  assert.deepStrictEqual(files, [['/Users/x/a.pdf']]);
+  assert.deepStrictEqual(images, []);
+  assert.deepStrictEqual(texts, []);
+});
+
+test('different file sets are captured separately; text after files works', () => {
+  const { clip, texts, files, w } = setup();
+  clip.files = ['/a.txt'];
+  w.check();
+  clip.files = ['/a.txt', '/b.txt'];
+  w.check();
+  clip.files = null;
+  clip.text = 'after';
+  w.check();
+  assert.deepStrictEqual(files, [['/a.txt'], ['/a.txt', '/b.txt']]);
+  assert.deepStrictEqual(texts, ['after']);
+});
+
+test('clipboard adapters without readFilePaths still work', () => {
+  const clip = {
+    text: 'hi',
+    readText() { return this.text; },
+    readImagePng() { return null; },
+    hasConcealed() { return false; },
+  };
+  const texts = [];
+  const w = createWatcher({ clipboard: clip, onText: (t) => texts.push(t), onImage: () => {} });
+  w.check();
+  assert.deepStrictEqual(texts, ['hi']);
 });

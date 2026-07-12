@@ -1,12 +1,25 @@
 const sha1 = require('./hash');
 
-function createWatcher({ clipboard, onText, onImage, intervalMs = 500 }) {
+function createWatcher({ clipboard, onText, onImage, onFile, intervalMs = 500 }) {
   let lastTextHash = null;
   let lastImageHash = null;
+  let lastFileHash = null;
   let timer = null;
 
   function check() {
     if (clipboard.hasConcealed()) return;
+    const files = clipboard.readFilePaths ? clipboard.readFilePaths() : null;
+    if (files && files.length) {
+      const hash = sha1('file:' + JSON.stringify(files));
+      if (hash !== lastFileHash) {
+        lastFileHash = hash;
+        lastTextHash = null;
+        lastImageHash = null;
+        if (onFile) onFile(files);
+      }
+      return;
+    }
+    lastFileHash = null;
     const png = clipboard.readImagePng();
     if (png) {
       const hash = sha1(png);
