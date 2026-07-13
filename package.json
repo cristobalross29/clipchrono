@@ -1,6 +1,6 @@
 {
   "name": "clipchrono",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "A macOS menu-bar clipboard with memory \u2014 searchable history, folders for your snippets, and instant paste.",
   "license": "MIT",
   "os": [

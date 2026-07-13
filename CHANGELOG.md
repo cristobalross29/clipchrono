@@ -4,7 +4,7 @@ All notable changes to ClipChrono are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
 Each release is tagged (`vX.Y.Z`) — `git checkout vX.Y.Z` reproduces exactly what was published to npm.
 
-## Unreleased
+## [0.1.3] — 2026-07-12
 
 ### Added
 - **Link-aware clips** — URLs are detected offline and shown with their domain, plus an open-in-browser button.
