@@ -4,10 +4,11 @@ const { createWatcher } = require('../src/main/watcher');
 
 function fakeClipboard() {
   return {
-    text: '', png: null, files: null, concealed: false,
+    text: '', png: null, files: null, fileRef: null, concealed: false,
     readText() { return this.text; },
     readImagePng() { return this.png; },
     readFilePaths() { return this.files; },
+    readFileRef() { return this.fileRef; },
     hasConcealed() { return this.concealed; },
   };
 }
@@ -121,6 +122,23 @@ test('different file sets are captured separately; text after files works', () =
   w.check();
   assert.deepStrictEqual(files, [['/a.txt'], ['/a.txt', '/b.txt']]);
   assert.deepStrictEqual(texts, ['after']);
+});
+
+test('a copied file that is moved (same ref, new resolved path) is not recaptured', () => {
+  const { clip, files, w } = setup();
+  clip.fileRef = 'file:///.file/id=6571367.48157742';
+  clip.files = ['/Users/x/Downloads/a.png'];
+  w.check();
+  // file moved to Trash: the pasteboard reference is unchanged, but NSFilenames
+  // re-resolves to the new path. This must NOT look like a fresh copy.
+  clip.files = ['/Users/x/.Trash/a.png'];
+  w.check();
+  assert.deepStrictEqual(files, [['/Users/x/Downloads/a.png']]);
+  // a genuinely different file (new reference) IS captured
+  clip.fileRef = 'file:///.file/id=6571367.99999999';
+  clip.files = ['/Users/x/Downloads/b.png'];
+  w.check();
+  assert.strictEqual(files.length, 2);
 });
 
 test('clipboard adapters without readFilePaths still work', () => {

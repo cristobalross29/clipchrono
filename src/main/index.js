@@ -59,6 +59,11 @@ const clipboardAdapter = {
     } catch {}
     return null;
   },
+  readFileRef() {
+    // the pasteboard's file-url is a stable reference (…/.file/id=N) that survives
+    // the file being moved — used only for change-detection, never as a paste path
+    try { const url = clipboard.read('public.file-url'); return url || null; } catch { return null; }
+  },
 };
 
 function makeThumb(pngBuffer) {
