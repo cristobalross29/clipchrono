@@ -1,4 +1,5 @@
-const { app, BrowserWindow, Tray, Menu, nativeImage, globalShortcut, ipcMain, clipboard, screen, systemPreferences } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, globalShortcut, ipcMain, clipboard, screen, systemPreferences, shell, dialog } = require('electron');
+const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { createSettings, DEFAULTS } = require('./settings');
@@ -6,12 +7,15 @@ const { createStore } = require('./store');
 const { createWatcher } = require('./watcher');
 const launchagent = require('./launchagent');
 const { sendPasteKeystroke } = require('./paster');
+const { parseFilenamesPlist, buildFilenamesPlist, fileUrlToPath } = require('./filepaste');
+const { exportBackup, importBackup } = require('./backup');
 
 app.setName('ClipChrono');
 if (!app.requestSingleInstanceLock()) app.quit();
 
 const dataDir = () => app.getPath('userData');
 let settings, store, watcher, tray, panel, welcome;
+let dialogOpen = false;
 
 const PANEL_W = 360;
 const PANEL_H = 480;
@@ -31,6 +35,35 @@ const clipboardAdapter = {
   hasConcealed: () => {
     try { return clipboard.has('org.nspasteboard.ConcealedType'); } catch { return false; }
   },
+  lastFileBuf: null,
+  lastFileResult: null,
+  readFilePaths() {
+    try {
+      const buf = clipboard.readBuffer('NSFilenamesPboardType');
+      if (buf && buf.length) {
+        if (this.lastFileBuf && buf.equals(this.lastFileBuf)) {
+          if (this.lastFileResult) return this.lastFileResult;
+        } else {
+          this.lastFileBuf = buf;
+          this.lastFileResult = parseFilenamesPlist(buf);
+          if (this.lastFileResult) return this.lastFileResult;
+        }
+      } else {
+        this.lastFileBuf = null;
+        this.lastFileResult = null;
+      }
+    } catch {}
+    try {
+      const url = clipboard.read('public.file-url');
+      if (url) return [fileUrlToPath(url)];
+    } catch {}
+    return null;
+  },
+  readFileRef() {
+    // the pasteboard's file-url is a stable reference (…/.file/id=N) that survives
+    // the file being moved — used only for change-detection, never as a paste path
+    try { const url = clipboard.read('public.file-url'); return url || null; } catch { return null; }
+  },
 };
 
 function makeThumb(pngBuffer) {
@@ -43,9 +76,30 @@ const toView = (i) => ({
   pinned: i.pinned,
   folderId: i.folderId || null,
   copiedAt: i.copiedAt,
+  kind: i.kind || null,
   preview: i.type === 'text' ? i.text.slice(0, 300) : null,
   thumbUrl: i.type === 'image' ? pathToFileURL(i.thumbPath).href : null,
+  ...(i.type === 'file'
+    ? Array.isArray(i.paths) && i.paths.length
+      ? {
+          fileName: path.basename(i.paths[0]),
+          fileDir: path.dirname(i.paths[0]),
+          fileCount: i.paths.length,
+          missing: !i.paths.every((p) => fs.existsSync(p)),
+        }
+      : { fileName: null, fileDir: null, fileCount: 0, missing: true }
+    : { fileName: null, fileDir: null, fileCount: 0, missing: false }),
 });
+
+const iconCache = new Map();
+function fileIconUrl(p) {
+  const ext = path.extname(p).toLowerCase() || '(none)';
+  if (!iconCache.has(ext)) {
+    // cache the promise, not the value: 500 same-extension rows must not fan out 500 native icon lookups
+    iconCache.set(ext, app.getFileIcon(p, { size: 'small' }).then((img) => img.toDataURL()).catch(() => { iconCache.delete(ext); return null; }));
+  }
+  return iconCache.get(ext);
+}
 
 function createPanel() {
   panel = new BrowserWindow({
@@ -63,7 +117,7 @@ function createPanel() {
     webPreferences: { preload: path.join(__dirname, '..', 'preload.js') },
   });
   panel.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
-  panel.on('blur', () => panel.hide());
+  panel.on('blur', () => { if (!dialogOpen) panel.hide(); });
   panel.on('hide', () => registerHotkey());
 }
 
@@ -115,19 +169,49 @@ function showWelcome() {
 }
 
 function setupIpc() {
-  ipcMain.handle('history:list', (_e, query, folderId) => store.list(query || '', folderId || null).map(toView));
+  ipcMain.handle('history:list', (_e, query, folderId) =>
+    Promise.all(store.list(query || '', folderId || null).map(async (i) => {
+      const v = toView(i);
+      if (i.type === 'file' && !v.missing) v.iconUrl = await fileIconUrl(i.paths[0]);
+      return v;
+    })));
 
   ipcMain.handle('item:select', (_e, id) => {
     const item = store.get(id);
-    if (!item) return;
+    if (!item) return { ok: false };
+    let filePlist = null;
+    if (item.type === 'file') {
+      if (!item.paths.every((p) => fs.existsSync(p))) return { ok: false, missing: true };
+      try { filePlist = buildFilenamesPlist(item.paths); } catch { return { ok: false, missing: true }; }
+    } else if (item.type !== 'text' && item.type !== 'image') {
+      return { ok: false };
+    }
     panel.hide();
     app.hide();
     if (item.type === 'text') clipboard.writeText(item.text);
-    else clipboard.writeImage(nativeImage.createFromPath(item.imagePath));
+    else if (item.type === 'image') clipboard.writeImage(nativeImage.createFromPath(item.imagePath));
+    else {
+      try {
+        clipboard.clear();
+        clipboard.writeBuffer('NSFilenamesPboardType', filePlist);
+      } catch {
+        return { ok: false };
+      }
+    }
     store.touch(id);
     if (systemPreferences.isTrustedAccessibilityClient(false)) {
       setTimeout(() => sendPasteKeystroke(), 150);
     }
+    return { ok: true };
+  });
+
+  ipcMain.handle('item:openUrl', (_e, id) => {
+    const item = store.get(id);
+    if (!item || item.type !== 'text') return;
+    try {
+      const u = new URL(item.text.trim());
+      if (u.protocol === 'http:' || u.protocol === 'https:') shell.openExternal(item.text.trim()).catch(() => {});
+    } catch {}
   });
 
   ipcMain.handle('item:remove', (_e, ids) => store.remove(ids));
@@ -144,6 +228,43 @@ function setupIpc() {
     accessibilityOk: systemPreferences.isTrustedAccessibilityClient(false),
     version: app.getVersion(),
   }));
+
+  const localStamp = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  ipcMain.handle('backup:export', async () => {
+    dialogOpen = true;
+    let res;
+    try { res = await dialog.showSaveDialog(panel, { defaultPath: `ClipChrono-backup-${localStamp()}.zip` }); }
+    finally { dialogOpen = false; panel.focus(); }
+    if (res.canceled || !res.filePath) return { ok: true, canceled: true };
+    try {
+      exportBackup({ dataDir: dataDir(), destZip: res.filePath, tmpRoot: app.getPath('temp') });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: String(err.message || err) };
+    }
+  });
+
+  ipcMain.handle('backup:import', async () => {
+    dialogOpen = true;
+    let res;
+    try {
+      res = await dialog.showOpenDialog(panel, {
+        filters: [{ name: 'ClipChrono backup', extensions: ['zip'] }],
+        properties: ['openFile'],
+      });
+    } finally { dialogOpen = false; panel.focus(); }
+    if (res.canceled || !res.filePaths.length) return { ok: true, canceled: true };
+    try {
+      const r = importBackup({ zipPath: res.filePaths[0], tmpRoot: app.getPath('temp'), store });
+      return { ok: true, added: r.added, kept: r.kept };
+    } catch (err) {
+      return { ok: false, error: String(err.message || err) };
+    }
+  });
 
   ipcMain.handle('settings:set', (_e, patch) => {
     const before = settings.get();
@@ -202,6 +323,7 @@ app.whenReady().then(() => {
     clipboard: clipboardAdapter,
     onText: (t) => { store.addText(t); if (panel && panel.isVisible()) panel.webContents.send('history:changed'); },
     onImage: (png) => { store.addImage(png, makeThumb(png)); if (panel && panel.isVisible()) panel.webContents.send('history:changed'); },
+    onFile: (paths) => { store.addFile(paths); if (panel && panel.isVisible()) panel.webContents.send('history:changed'); },
   });
 
   tray = new Tray(nativeImage.createEmpty());

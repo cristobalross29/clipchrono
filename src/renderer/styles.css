@@ -158,3 +158,11 @@ footer {
   font-size: 12px;
 }
 .folder-popover-item:hover { background: #0a84ff; color: #fff; }
+.code-preview { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; white-space: pre; word-break: normal; }
+.link-domain { font-weight: 600; }
+.link-url { font-size: 11px; opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.file-icon { width: 16px; height: 16px; flex-shrink: 0; }
+.file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-dir { font-size: 11px; opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item.missing .body { opacity: 0.45; }
